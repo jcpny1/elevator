@@ -27,22 +27,24 @@ class ElevatorCar
         end
       elsif @car_status === 'holding'
         sleep 1
+        next
       end
 
       if @destination.length > 0
-        if @destination[0] > @location
+        case @destination[0] <=> @location
+        when 1
           car_start
           @direction = 'up'
           @location += 1
           sleep 1
           puts "floor #{@location}"
-        elsif @destination[0] < @location
+        when -1
           car_start
           @direction = 'dn'
           @location -= 1
           sleep 1
           puts "floor #{@location}"
-        else
+        when 0
           car_stop
           door_open
           sleep 3  # loading time
@@ -53,7 +55,6 @@ class ElevatorCar
         break;
       end
     end
-
     puts 'New Car' + ' thread done'
   end
 
@@ -68,7 +69,7 @@ class ElevatorCar
 
   def car_stop
     if @car_status === 'moving'
-      puts '<stopping>'
+      puts "<stopping on #{@location}>"
       @car_status = 'holding'
       sleep 1
     end

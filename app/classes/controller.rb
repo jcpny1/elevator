@@ -1,5 +1,4 @@
-# A Controller receives requests for elevator services and
-# assigns an elevators to service those requests.
+# A Controller receives requests for elevator services and assigns elevators to service those requests.
 class Controller
   def initialize(request_q)
     @request_q = request_q
