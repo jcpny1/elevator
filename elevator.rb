@@ -12,7 +12,8 @@ controller_t = Thread.new('controller') { |name|
     elevator_q << e
   end
   puts name + ' thread done'
-# close elevator threads
+  elevator_q << nil
+  elevator_t.join()
 }
 
 command_t = Thread.new('command') { |name|
@@ -30,6 +31,6 @@ sleep 5
   command_q << nil
 }
 
-controller_t.join()
 command_t.join()
+controller_t.join()
 command_q.close

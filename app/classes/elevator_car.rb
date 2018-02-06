@@ -1,8 +1,12 @@
+require 'pry'
+
 # An ElevatorCar moves people between floors of a building.
 class ElevatorCar
 
   def initialize(command_q)
+    @car_status = 'holding'
     @command_q = command_q
+    @destination = []
     @direction = 'up'
     @door_status = 'closed'
     @location = 1
@@ -10,17 +14,67 @@ class ElevatorCar
   end
 
   def run
-    while e = @command_q.deq # wait for nil to break loop
-      dest = e[:floor].to_i
-      puts '<' + e[:cmd] + ' ' + e[:floor] + '>'
-      case e[:cmd]
-      when 'CALL'
-        goto e[:floor].to_i
-      when 'GOTO'
-        goto e[:floor].to_i
+    drain_queue = false
+    while 1
+      if @command_q.length > 0
+        e = @command_q.deq # wait for nil to break loop
+        if e.nil?
+          drain_queue = true
+        else
+          case e[:cmd]
+          when 'CALL'
+            @destination << e[:floor].to_i
+          when 'GOTO'
+            @destination << e[:floor].to_i
+          end
+        end
+      elsif @car_status === 'holding'
+        sleep 1
+      end
+
+      if @destination.length > 0
+        if @destination[0] > @location
+          car_start
+          @direction = 'up'
+          @location += 1
+          sleep 1
+          puts "floor #{@location}"
+        elsif @destination[0] < @location
+          car_start
+          @direction = 'dn'
+          @location -= 1
+          sleep 1
+          puts "floor #{@location}"
+        else
+          car_stop
+          door_open
+          sleep 3  # loading time
+          @destination.shift
+        end
+      elsif drain_queue
+        door_close
+        break;
       end
     end
+
     puts 'New Car' + ' thread done'
+  end
+
+  def car_start
+    if @car_status === 'holding'
+      door_close
+      puts '<starting>'
+      @car_status = 'moving'
+      sleep 0.25
+    end
+  end
+
+  def car_stop
+    if @car_status === 'moving'
+      puts '<stopping>'
+      @car_status = 'holding'
+      sleep 1
+    end
   end
 
   def door_close
@@ -39,28 +93,5 @@ class ElevatorCar
       @door_status = 'open'
       puts 'door ' + @door_status
     end
-  end
-
-  def start
-    puts '<starting>'
-    sleep 0.25
-  end
-
-  def stop
-    puts '<stopping>'
-    sleep 1
-  end
-
-  def goto(dest)
-    @direction = dest > @location ? 'up' : 'down'
-    door_close
-    start
-    while @location != dest
-      sleep 1
-      @direction === 'up' ? @location += 1 : @location -= 1
-      puts "floor #{@location}"
-    end
-    stop
-    door_open
   end
 end
