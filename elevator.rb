@@ -10,13 +10,13 @@ end
 sleep 1
 puts '  GOTO 6'
 command_q << {cmd: 'GOTO', floor: '6'}
-sleep 5
-puts '  GOTO 4'
-command_q << {cmd: 'GOTO', floor: '4'}
-sleep 5
+sleep 1
 puts '  CALL 2 UP'
 command_q << {cmd: 'CALL', floor: '2', direction: 'up'}
-sleep 5
+sleep 2
+puts '  GOTO 4'
+command_q << {cmd: 'GOTO', floor: '4'}
+sleep 1
 puts '  END'
 command_q << nil
 

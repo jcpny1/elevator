@@ -1,5 +1,8 @@
 # An ElevatorCar moves people between floors of a building.
 class ElevatorCar
+
+  FEET_PER_FLOOR = 12
+
   def initialize(command_q)
     @car_status = 'holding'
     @command_q = command_q
@@ -7,7 +10,8 @@ class ElevatorCar
     @direction = 'up'
     @door_status = 'closed'
     @location = 1
-    puts 'New Car'
+    @feet_traveled = 0
+    puts '<New Car active>'
   end
 
   def run
@@ -25,9 +29,6 @@ class ElevatorCar
             @destination << e[:floor].to_i
           end
         end
-      elsif @car_status === 'holding'
-        sleep 1
-        next
       end
 
       if @destination.length > 0
@@ -36,14 +37,16 @@ class ElevatorCar
           car_start
           @direction = 'up'
           @location += 1
+          @feet_traveled += FEET_PER_FLOOR
           sleep 1
-          puts "floor #{@location}"
+          puts "<floor #{@location}>"
         when -1
           car_start
           @direction = 'dn'
           @location -= 1
+          @feet_traveled += FEET_PER_FLOOR
           sleep 1
-          puts "floor #{@location}"
+          puts "<floor #{@location}>"
         when 0
           car_stop
           door_open
@@ -53,9 +56,11 @@ class ElevatorCar
       elsif drain_queue
         door_close
         break;
+      else
+        sleep 1
       end
     end
-    puts 'New Car' + ' thread done'
+    puts "<New Car done. Feet Traveled: #{@feet_traveled}>"
   end
 
   def car_start
@@ -80,7 +85,7 @@ class ElevatorCar
       puts '<door closing>'
       sleep 2
       @door_status = 'closed'
-      puts 'door ' + @door_status
+      puts "<door #{@door_status}>"
     end
   end
 
@@ -89,7 +94,7 @@ class ElevatorCar
       puts '<door opening>'
       sleep 2
       @door_status = 'open'
-      puts 'door ' + @door_status
+      puts "<door #{@door_status}>"
     end
   end
 end
