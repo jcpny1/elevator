@@ -1,8 +1,5 @@
-require 'pry'
-
 # An ElevatorCar moves people between floors of a building.
 class ElevatorCar
-
   def initialize(command_q)
     @car_status = 'holding'
     @command_q = command_q
