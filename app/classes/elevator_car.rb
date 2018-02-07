@@ -37,23 +37,11 @@ class ElevatorCar
         if @destination.length > 0
           case @destination[0] <=> @location
           when 1
-            car_start
-            @direction = 'up'
-            @location += 1
-            @feet_traveled += FEET_PER_FLOOR
-            @next_command_time += FEET_PER_FLOOR/FEET_PER_SECOND
-            puts "<floor #{@location}>"
+            car_move(1)
           when -1
-            car_start
-            @direction = 'dn'
-            @location -= 1
-            @feet_traveled += FEET_PER_FLOOR
-            @next_command_time += FEET_PER_FLOOR/FEET_PER_SECOND
-            puts "<floor #{@location}>"
+            car_move(-1)
           when 0
-            car_stop
-            door_open
-            @next_command_time += 3  # loading
+            car_arrive
             @destination.shift
           end
         elsif drain_queue && @car_status === 'holding'
@@ -66,6 +54,23 @@ class ElevatorCar
       sleep 0.25
     end
     puts "<New Car done. Distance Traveled: #{@feet_traveled} feet>"
+  end
+
+private
+
+  def car_arrive
+    car_stop
+    door_open
+    @next_command_time += 3  # loading
+  end
+
+  def car_move(floors)
+    car_start
+    @direction = floors < 0 ? 'dn' : 'up'
+    @location += floors
+    @feet_traveled += floors.abs * FEET_PER_FLOOR
+    @next_command_time += floors.abs * FEET_PER_FLOOR/FEET_PER_SECOND
+    puts "<floor #{@location}>"
   end
 
   def car_start

@@ -18,15 +18,14 @@ class Controller
   def run
     while 1
       if @request_q.length > 0
-        e = @request_q.deq # wait for nil to break loop
+        e = @request_q.deq
         @elevator_q << e
-        # break if e.nil?
       end
+      break if !@elevator_t.status
       sleep 0.25
       @@simulation_time += 1
     end
     puts "Controller done. Simulation time: #{@@simulation_time}"
-    @elevator_q << nil
     @elevator_t.join()
     @elevator_q.close
   end
