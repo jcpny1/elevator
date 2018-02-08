@@ -2,7 +2,7 @@
 class Controller
 
   END_OF_SIMULATION = 'END SIMULATION'
-  NUM_ELEVATORS = 1
+  NUM_ELEVATORS = 2
 
   @@simulation_time = 0.0  # seconds
 
@@ -12,8 +12,9 @@ class Controller
 
     NUM_ELEVATORS.times do |i|
       e_queue  = Queue.new
-      e_thread = Thread.new("#{i}") { |id| ElevatorCar.new(id, e_queue).run }
-      @elevators << { queue: e_queue, thread: e_thread }
+      e_status = Hash.new
+      e_thread = Thread.new("#{i}") { |id| ElevatorCar.new(id, e_queue, e_status).run }
+      @elevators << { id: i, queue: e_queue, thread: e_thread, status: e_status }
     end
   end
 
@@ -45,8 +46,8 @@ class Controller
     @elevators.each do |elevator|
       elevator[:thread].join()
       elevator[:queue].close
+      puts "Elevator #{elevator[:id]}: #{elevator[:status]}"
     end
-
   end
 
   def self.time
