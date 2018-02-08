@@ -21,13 +21,13 @@ class Controller
     # Accept a simulator command. Pick an elevator. Pass command to elevator.
     while 1
       if @request_q.length > 0
-        e = @request_q.deq
-        if e[:cmd] === END_OF_SIMULATION
-          @elevators.each { |elevator| elevator[:queue] << e }
+        request = @request_q.deq
+        if request[:cmd] === END_OF_SIMULATION
+          @elevators.each { |elevator| elevator[:queue] << request }
           break
         else
-          elevator = select_elevator(e)
-          elevator[:queue] << e
+          elevator = select_elevator(request)
+          elevator[:queue] << request
         end
       end
       sleep 0.125

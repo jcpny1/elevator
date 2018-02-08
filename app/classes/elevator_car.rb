@@ -25,13 +25,13 @@ class ElevatorCar
     while 1
       # Check controller for incoming commands.
       if @controller_q.length > 0
-        e = @controller_q.deq
-        case e[:cmd]
+        request = @controller_q.deq
+        case request[:cmd]
         when 'CALL', 'GOTO'
-          floor = e[:floor].to_i
+          floor = request[:floor].to_i
           @destinations << floor
-          @passengers[floor][:pickup] += e[:pickup].length
-          e[:pickup].each { |dest_floor| @passengers[dest_floor][:discharge] += 1 }
+          @passengers[floor][:pickup] += request[:pickup].length
+          request[:pickup].each { |dest_floor| @passengers[dest_floor][:discharge] += 1 }
         when Controller::END_OF_SIMULATION
           drain_queue = true
         else
