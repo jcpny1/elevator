@@ -18,6 +18,7 @@ class Controller
   end
 
   def run
+    # Accept a simulator command. Pick an elevator. Pass command to elevator.
     while 1
       if @request_q.length > 0
         e = @request_q.deq
@@ -33,17 +34,19 @@ class Controller
       @@simulation_time += 1.0
     end
 
+    # Wait for elevators to complete their commands.
     while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
       sleep 0.125
       @@simulation_time += 1.0
     end
 
-    puts "Controller done. Simulation time: #{@@simulation_time}"
-
+    # Elevators are done. Clean up.
+    puts "Controller done. Simulated time: #{@@simulation_time}"
     @elevators.each do |elevator|
       elevator[:thread].join()
       elevator[:queue].close
     end
+
   end
 
   def self.time
