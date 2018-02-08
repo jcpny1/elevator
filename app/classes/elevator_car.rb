@@ -10,7 +10,6 @@ class ElevatorCar
     @id = id
     @controller_q = controller_q
     @destinations = []  # floors to visit ordered by visit order.
-    @next_command_time = Controller::time
     @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }
     @e_status = e_status
     @e_status[:car]       = 'holding'
@@ -18,6 +17,7 @@ class ElevatorCar
     @e_status[:distance]  = 0.0
     @e_status[:door]      = 'closed'
     @e_status[:location]  = 1
+    @e_status[:time]      = Controller::time
     msg 'active'
   end
 
@@ -37,7 +37,7 @@ class ElevatorCar
         end
       end
       # Execute next command.
-      if Controller::time >= @next_command_time
+      if Controller::time >= @e_status[:time]
         if @destinations.length > 0
           car_move(@destinations[0] <=> @e_status[:location])
         else
@@ -54,7 +54,7 @@ private
 
   # Advance the time the given amount.
   def advance_next_command_time(num)
-    @next_command_time += num
+    @e_status[:time] += num
   end
 
   # doors will be open 3 seconds per passenger on or off with a minimum open of 3 seconds.
@@ -82,7 +82,7 @@ private
     end
   end
 
-  # Move number of floors indicated. - = down, + = up, 0 = arrived.
+  # Move number of floors indicated. -# = down, +# = up, 0 = arrived.
   def car_move(floors)
     if floors == 0
       execute_command { car_arrival }
@@ -135,23 +135,17 @@ private
   end
 
   def execute_command
-    sleep 0.25 until Controller::time >= @next_command_time
+    sleep 0.25 until Controller::time >= @e_status[:time]
     yield
-# msg "Simulation Time: #{@next_command_time}"
+# msg "Simulation Time: #{@e_status[:time]}"
   end
 
   def msg(text)
-    puts "Time: %5.2f: Elevator #{@id}: #{text}" % @next_command_time
+    puts "Time: %5.2f: Elevator #{@id}: #{text}" % @e_status[:time]
   end
 
   def process_floor_request(request)
     floor = request[:floor].to_i
-
-# if new floor > current floor && elevator is going up, insert this request in destinations before next highest floor (or append).
-# else if new floor < current floor && elevator is going down, insert this request in destinations before next lowest floor (or prepend).
-
-
-
     @destinations << floor
     @passengers[floor][:pickup] += request[:pickup].length
     request[:pickup].each { |dest_floor| @passengers[dest_floor][:discharge] += 1 }
