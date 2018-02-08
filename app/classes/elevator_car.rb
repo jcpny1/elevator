@@ -1,18 +1,19 @@
 # An ElevatorCar moves people between floors of a building.
 class ElevatorCar
 
-  FEET_PER_FLOOR  = 12
-  FEET_PER_SECOND =  5
+  FEET_PER_FLOOR  = 12.0
+  FEET_PER_SECOND =  5.0
 
   def initialize(command_q)
     @car_status = 'holding'
     @command_q = command_q
-    @destination = []
-    @direction = 'up'
+    @current_direction = ''
+    @current_location = 1
+    @destinations = []  # floors to visit ordered by visit order.
     @door_status = 'closed'
-    @feet_traveled = 0
-    @location = 1
+    @feet_traveled = 0.0
     @next_command_time = Controller::time
+    @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }
     puts '<New Car active>'
   end
 
@@ -26,24 +27,19 @@ class ElevatorCar
             drain_queue = true
           else
             case e[:cmd]
-            when 'CALL'
-              @destination << e[:floor].to_i
-            when 'GOTO'
-              @destination << e[:floor].to_i
+            when 'CALL', 'GOTO'
+              floor = e[:floor].to_i
+              @destinations << floor
+              @passengers[floor][:pickup] += e[:pickup].length
+              e[:pickup].each { |dest_floor| @passengers[dest_floor][:discharge] += 1 }
+            else
+              puts '***Unknown command***'
             end
           end
         end
 
-        if @destination.length > 0
-          case @destination[0] <=> @location
-          when 1
-            car_move(1)
-          when -1
-            car_move(-1)
-          when 0
-            car_arrive
-            @destination.shift
-          end
+        if @destinations.length > 0
+          car_move(@destinations[0] <=> @current_location)
         elsif drain_queue && @car_status === 'holding'
           door_close
           break;
@@ -58,19 +54,31 @@ class ElevatorCar
 
 private
 
+  # doors will be open 3 seconds per passenger on or off with a minimum open of 3 seconds.
   def car_arrive
     car_stop
     door_open
-    @next_command_time += 3  # loading
+puts "<Discharge #{@passengers[@current_location][:discharge]}"
+puts "<Pickup    #{@passengers[@current_location][:pickup]}"
+    passenger_time = (@passengers[@current_location][:discharge] * 3.0) + (@passengers[@current_location][:pickup] * 3.0)
+    @passengers[@current_location][:discharge] = 0
+    @passengers[@current_location][:pickup]    = 0
+    @next_command_time += passenger_time > 0.0 ? passenger_time : 3.0
   end
 
+  # Move number of floors indicated. - = down, + = up, 0 = arrived.
   def car_move(floors)
-    car_start
-    @direction = floors < 0 ? 'dn' : 'up'
-    @location += floors
-    @feet_traveled += floors.abs * FEET_PER_FLOOR
-    @next_command_time += floors.abs * FEET_PER_FLOOR/FEET_PER_SECOND
-    puts "<floor #{@location}>"
+    if floors != 0
+      car_start
+      @current_direction = floors < 0 ? 'dn' : 'up'
+      @current_location += floors
+      @feet_traveled += floors.abs * FEET_PER_FLOOR
+      @next_command_time += floors.abs * FEET_PER_FLOOR/FEET_PER_SECOND
+      puts "<floor #{@current_location}>"
+    else
+      car_arrive
+      @destinations.shift
+    end
   end
 
   def car_start
@@ -84,17 +92,17 @@ private
 
   def car_stop
     if @car_status === 'moving'
-      puts "<stopping on #{@location}>"
+      puts "<stopping on #{@current_location}>"
 puts "Simulation Time: #{Controller::time}"
       @car_status = 'holding'
-      @next_command_time += 1
+      @next_command_time += 1.0
     end
   end
 
   def door_close
     if @door_status != 'closed'
       puts '<door closing>'
-      @next_command_time += 2
+      @next_command_time += 2.0
       @door_status = 'closed'
       puts "<door #{@door_status}>"
     end
@@ -103,7 +111,7 @@ puts "Simulation Time: #{Controller::time}"
   def door_open
     if @door_status != 'open'
       puts '<door opening>'
-      @next_command_time += 2
+      @next_command_time += 2.0
       @door_status = 'open'
       puts "<door #{@door_status}>"
     end
