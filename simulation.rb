@@ -17,6 +17,6 @@ puts '  GOTO 1'
 controller_q << {cmd: 'CALL', floor: '1', direction: 'up', pickup: []}   # pickup: array of passengers' destinations, 1 per passenger boarding
 
 puts '  END'
-controller_q << nil
+controller_q << {cmd: Controller::END_OF_SIMULATION}
 controller_t.join()
 controller_q.close

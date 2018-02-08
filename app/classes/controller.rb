@@ -1,6 +1,7 @@
 # A Controller receives requests for elevator services and assigns elevators to service those requests.
 class Controller
 
+  END_OF_SIMULATION = 'END SIMULATION'
   NUM_ELEVATORS = 1
 
   @@simulation_time = 0.0  # seconds
@@ -11,7 +12,7 @@ class Controller
 
     NUM_ELEVATORS.times do |i|
       e_queue  = Queue.new
-      e_thread = Thread.new("Elevator #{i}") { |name| ElevatorCar.new(name, e_queue).run }
+      e_thread = Thread.new("#{i}") { |id| ElevatorCar.new(id, e_queue).run }
       @elevators << { queue: e_queue, thread: e_thread }
     end
   end
@@ -20,17 +21,25 @@ class Controller
     while 1
       if @request_q.length > 0
         e = @request_q.deq
-        elevator = select_elevator(e)
-        elevator[:queue] << e
+        if e[:cmd] === END_OF_SIMULATION
+          @elevators.each { |elevator| elevator[:queue] << e }
+          break
+        else
+          elevator = select_elevator(e)
+          elevator[:queue] << e
+        end
       end
-# TODO we will be interpretting the command in a future release. So we'll be commanding elevator to terminate.
-#      for now, we'll just check the status of the first elevator to see if it was commanded to terminate.
-      break if !@elevators[0][:thread].status
-      sleep 0.25
+      sleep 0.125
+      @@simulation_time += 1.0
+    end
+
+    while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
+      sleep 0.125
       @@simulation_time += 1.0
     end
 
     puts "Controller done. Simulation time: #{@@simulation_time}"
+
     @elevators.each do |elevator|
       elevator[:thread].join()
       elevator[:queue].close
