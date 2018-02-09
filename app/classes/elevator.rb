@@ -5,11 +5,19 @@ class Elevator
   DISTANCE_PER_SECOND =  4.0
   DISTANCE_UNITS = 'Feet'
 
+  DISCHARGE_TIME_PER_PASSENGER = 3.0
+  DOOR_WAIT_TIME = 3.0
+  LOAD_TIME_PER_PASSENGER = 3.0
+
+  PASSENGER_LIMIT = 10
+  WEIGHT_LIMIT = 2000
+
   def initialize(id, controller_q, e_status, floors, semaphore)
     @id = id
     @controller_q = controller_q
     @destinations = []                  # floors to visit ordered by visit order.
     @floors = floors                    # read-write by simulation and elevator. Protect with mutex semaphore.
+    @riders = {count: 0, weight: 0, persons: []}  # elevator occupants
     @semaphore = semaphore
     @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }  # passenger demand by floor.
     @e_status = e_status                # Shared memory status. Read-only in other threads.
@@ -64,39 +72,45 @@ private
     execute_command { car_stop }
     execute_command { door_open }
 
+    # Discharge cycle.
     discharge = @passengers[@e_status[:location]][:discharge]
-    if discharge > 0
-      advance_next_command_time(discharge * 3.0)
+    if discharge.positive?
+      advance_next_command_time(discharge * DISCHARGE_TIME_PER_PASSENGER)
       @passengers[@e_status[:location]][:discharge] = 0
       msg "discharged #{discharge}"
     end
 
-    # pickup = @passengers[@e_status[:location]][:pickup]
-    pickup = []
+    # Pickup cycle.
+    pickup_count = 0
     @semaphore.synchronize {
-      pickup = @floors[@e_status[:location]][:waiters]
-      if !pickup.empty?
-        advance_next_command_time(pickup.length * 3.0)
-      # @passengers[@e_status[:location]][:pickup] = 0
-        @floors[@e_status[:location]][:waiters] = []
-        msg "picked up #{pickup.length}"
+      waiters = @floors[@e_status[:location]][:waiters]
+      waiters.delete_if do |person|
+        break if @riders[:count] == PASSENGER_LIMIT
+        break if @riders[:weight] + person.weight > WEIGHT_LIMIT
+        @riders[:persons] << person
+        @riders[:count] += 1
+        @riders[:weight] += person.weight
+        advance_next_command_time(LOAD_TIME_PER_PASSENGER)
+        pickup_count += 1
+        true
       end
     }
+    msg "picked up #{pickup_count}" if pickup_count.positive?
 
-    if (discharge + pickup.length) === 0
+    if (discharge + pickup_count).zero?
       msg 'waiting'
-      advance_next_command_time(3.0)
+      advance_next_command_time(DOOR_WAIT_TIME)
     end
   end
 
   # Move number of floors indicated. -# = down, +# = up, 0 = arrived.
   def car_move(floors)
-    if floors == 0
+    if floors.zero?
       execute_command { car_arrival }
       @destinations.shift
     else
       execute_command { car_start }
-      @e_status[:direction] = floors < 0 ? 'dn' : 'up'
+      @e_status[:direction] = floors.negative? ? 'dn' : 'up'
       @e_status[:location] += floors
       @e_status[:distance] += floors.abs * DISTANCE_PER_FLOOR
       advance_next_command_time(floors.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
@@ -105,7 +119,7 @@ private
   end
 
   def car_start
-    if @e_status[:car] === 'holding'
+    if @e_status[:car].eql? 'holding'
       execute_command { door_close }
       msg 'starting'
       @e_status[:car] = 'moving'
@@ -115,7 +129,7 @@ private
   end
 
   def car_stop
-    if @e_status[:car] === 'moving'
+    if @e_status[:car].eql? 'moving'
       msg "stopping on #{@e_status[:location]}"
       @e_status[:car] = 'holding'
       advance_next_command_time(1.0)
@@ -124,7 +138,7 @@ private
   end
 
   def door_close
-    if @e_status[:door] != 'closed'
+    if !@e_status[:door].eql? 'closed'
       msg 'door closing'
       @e_status[:door] = 'closed'
       advance_next_command_time(2.0)
@@ -133,7 +147,7 @@ private
   end
 
   def door_open
-    if @e_status[:door] != 'open'
+    if !@e_status[:door].eql? 'open'
       msg 'door opening'
       @e_status[:door] = 'open'
       advance_next_command_time(2.0)
