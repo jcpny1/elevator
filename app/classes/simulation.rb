@@ -17,7 +17,7 @@ class Simulation
     @floors     = create_floors(NUM_FLOORS, @occupants)  # read-write by simulation and elevator. Protect with mutex semaphore.
     @elevators  = create_elevators(NUM_ELEVATORS, @floors)
     @controller = create_controller(@elevators)
-    @commands   = create_commands
+    @old_waiter_length = Array.new(@floors.length, 0)
   end
 
   def self.msg(text)
@@ -25,11 +25,15 @@ class Simulation
   end
 
   def run
-    while !@commands.empty?
-      if @commands[0][:time] <= Simulation::time
-Simulation::msg "Simulator: #{@commands[0]}"
-        @controller[:queue] << @commands[0]
-        @commands.shift
+    while 1
+      @commands = create_commands(@floors)
+      if !@commands.empty?
+        if @commands[0][:time] <= Simulation::time
+  Simulation::msg "Simulator: #{@commands[0]}"
+          @controller[:queue] << @commands[0]
+break if @commands[0][:cmd].eql? 'END'
+          @commands.shift
+        end
       end
       sleep LOOP_DELAY
       @@simulation_time += LOOP_TIME
@@ -64,10 +68,28 @@ Simulation::msg "Simulator: Simulation done. Simulated time: #{Simulation::time}
 private
 
   # Create simulation commands.
-  def create_commands
+  def create_commands(floors)
     commands = []
-    commands << {time: 3.0, cmd: 'CALL', floor: 1, direction: 'up'}
-    commands << {time: 6.0, cmd: 'END'}
+    any_waiting = false
+    @semaphore.synchronize {
+      floors.each_index do |i|
+        any_waiting ||= !floors[i][:waiters].length.zero?
+        if floors[i][:waiters].length != @old_waiter_length[i]
+          going_up = false
+          going_dn = false
+          floors[i][:waiters].each do |person|
+            going_up = person.destination > i
+            going_dn = person.destination < i
+            break if going_up && going_dn
+          end
+          @old_waiter_length[i] = floors[i][:waiters].length
+          commands << {time: Simulation::time, cmd: 'CALL', floor: i, direction: 'up'} if going_up
+          commands << {time: Simulation::time, cmd: 'CALL', floor: i, direction: 'dn'} if going_dn
+        end
+      end
+    }
+    commands << {time: Simulation::time, cmd: 'END'} if !any_waiting && @old_waiter_length.sum.zero?
+    commands
   end
 
   # Create controller.
