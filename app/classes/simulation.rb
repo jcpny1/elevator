@@ -8,10 +8,10 @@ class Simulation
   LOOP_TIME     =   1.0     # seconds.
   STATIC_SEED   = 101
 
+  @@rng = Random.new(STATIC_SEED)
   @@simulation_time = 0.0   # seconds
 
   def initialize
-    @rng        = Random.new(STATIC_SEED)
     @semaphore  = Mutex.new
     @occupants  = create_occupants(NUM_OCCUPANTS)
     @floors     = create_floors(NUM_FLOORS, @occupants)  # read-write by simulation and elevator. Protect with mutex semaphore.
@@ -22,6 +22,10 @@ class Simulation
 
   def self.msg(text)
     puts "Time: %5.2f: #{text}" % Simulation::time
+  end
+
+  def self.rng
+    @@rng
   end
 
   def run
@@ -122,7 +126,7 @@ private
   # Create occupants.
   def create_occupants(num)
     occupants = []
-    num.times { |i| occupants << Person.new(i, @rng.rand(2..NUM_FLOORS-1)) }
+    num.times { |i| occupants << Person.new(i, @@rng.rand(2..NUM_FLOORS-1)) }
     occupants
   end
 end
