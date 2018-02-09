@@ -1,21 +1,24 @@
 # Elevator operation simulator.
 class Simulation
 
-  NUM_ELEVATORS =   1
-  NUM_FLOORS    =   7       # => active floors 1 -> NUM_FLOORS.
-  NUM_OCCUPANTS =  20
-  LOOP_DELAY    =   0.125   # seconds.
-  LOOP_TIME     =   1.0     # seconds.
-  STATIC_SEED   = 101
+  LOOP_DELAY  =   0.125   # seconds.
+  LOOP_TIME   =   1.0     # seconds.
+  STATIC_SEED = 101
 
   @@rng = Random.new(STATIC_SEED)
   @@simulation_time = 0.0   # seconds
 
-  def initialize
+  def initialize(logic:'FCFS', modifiers: {}, floors: 6, elevators: 1, occupants: 20, debug:false)
+    @logic         = logic
+    @modifiers     = modifiers
+    @num_floors    = floors
+    @num_elevators = elevators
+    @num_occupants = occupants
+    @debug         = debug
     @semaphore  = Mutex.new
-    @occupants  = create_occupants(NUM_OCCUPANTS)
-    @floors     = create_floors(NUM_FLOORS, @occupants)  # read-write by simulation and elevator. Protect with mutex semaphore.
-    @elevators  = create_elevators(NUM_ELEVATORS, @floors)
+    @occupants  = create_occupants(@num_occupants)
+    @floors     = create_floors(@num_floors, @occupants)  # read-write by simulation and elevator. Protect with mutex semaphore.
+    @elevators  = create_elevators(@num_elevators, @floors)
     @controller = create_controller(@elevators)
     @old_waiter_length = Array.new(@floors.length, 0)
   end
@@ -33,25 +36,23 @@ class Simulation
       @commands = create_commands(@floors)
       if !@commands.empty?
         if @commands[0][:time] <= Simulation::time
-  Simulation::msg "Simulator: #{@commands[0]}"
+          Simulation::msg "Simulator: #{@commands[0]}"
           @controller[:queue] << @commands[0]
-break if @commands[0][:cmd].eql? 'END'
+          break if @commands[0][:cmd].eql? 'END'
           @commands.shift
         end
       end
       sleep LOOP_DELAY
       @@simulation_time += LOOP_TIME
-# Simulation::msg 'Simulator: '
     end
 
     # Keep clock running while waiting for elevators to complete their commands.
     while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
       sleep LOOP_DELAY
       @@simulation_time += LOOP_TIME
-# Simulation::msg 'Simulator: '
     end
 
-Simulation::msg "Simulator: Simulation done. Simulated time: #{Simulation::time}"
+    Simulation::msg "Simulator: Simulation done. Logic: #{@logic}. Simulated time: #{Simulation::time}"
 
     # Clean up controller.
     @controller[:thread].join()
@@ -126,22 +127,7 @@ private
   # Create occupants.
   def create_occupants(num)
     occupants = []
-    num.times { |i| occupants << Person.new(i, @@rng.rand(2..NUM_FLOORS-1)) }
+    num.times { |i| occupants << Person.new(i, @@rng.rand(2..@num_floors-1)) }
     occupants
   end
 end
-
-  #
-  # puts '  GOTO 6'
-  # controller_q << {cmd: 'GOTO', floor: '6', pickup: [4, 2, 1]}   # pickup: array of passengers' destinations, 1 per passenger boarding
-  # puts '  CALL 2 UP'
-  # controller_q << {cmd: 'CALL', floor: '2', direction: 'up', pickup: [4]}   # pickup: array of passengers' destinations, 1 per passenger boarding
-  # puts '  GOTO 4'
-  # controller_q << {cmd: 'CALL', floor: '4', direction: 'up', pickup: []}   # pickup: array of passengers' destinations, 1 per passenger boarding
-  # puts '  GOTO 1'
-  # controller_q << {cmd: 'CALL', floor: '1', direction: 'up', pickup: []}   # pickup: array of passengers' destinations, 1 per passenger boarding
-  #
-  # puts '  END'
-  # controller_q << {cmd: Controller::END_OF_SIMULATION}
-  # controller_t.join()
-  # controller_q.close

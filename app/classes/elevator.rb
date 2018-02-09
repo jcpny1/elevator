@@ -72,7 +72,7 @@ private
     @e_status[:time] += num
   end
 
-  # doors will be open 3 seconds per passenger on or off with a minimum open of 3 seconds.
+  # Execute arrival procedures.
   def car_arrival
     execute_command { car_stop }
     execute_command { door_open }
@@ -85,6 +85,7 @@ private
     pickup_count = pickup_passengers
     msg "picking up #{pickup_count}" if pickup_count.positive?
 
+    # If neither picking or dropping off, stay open DOOR_WAIT_TIME.
     if (discharge_count + pickup_count).zero?
       msg 'waiting'
       advance_next_command_time(DOOR_WAIT_TIME)
