@@ -4,11 +4,14 @@ class Simulation
   NUM_ELEVATORS =  1
   NUM_FLOORS    =  7  # => active floors 1 -> NUM_FLOORS.
   NUM_OCCUPANTS = 20
+  LOOP_DELAY = 0.25   # seconds.
+  LOOP_TIME  = 1.0    # seconds.
+  STATIC_SEED = 100
 
   @@simulation_time = 0.0  # seconds
 
   def initialize
-    @rng        = Random.new
+    @rng        = Random.new(STATIC_SEED)
     @semaphore  = Mutex.new
     @occupants  = create_occupants(NUM_OCCUPANTS)
     @floors     = create_floors(NUM_FLOORS, @occupants)  # read-write by simulation and elevator. Protect with mutex semaphore.
@@ -24,15 +27,15 @@ puts @commands[0]
         @controller[:queue] << @commands[0]
         @commands.shift
       end
-      sleep 1.0
-      @@simulation_time += 1.0
+      sleep LOOP_DELAY
+      @@simulation_time += LOOP_TIME
 puts Simulation::time
     end
 
     # Keep clock running while waiting for elevators to complete their commands.
     while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
-      sleep 1.0
-      @@simulation_time += 1.0
+      sleep LOOP_DELAY
+      @@simulation_time += LOOP_TIME
 puts Simulation::time
     end
 

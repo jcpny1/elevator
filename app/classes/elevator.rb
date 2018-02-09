@@ -5,9 +5,9 @@ class Elevator
   DISTANCE_PER_SECOND =  4.0
   DISTANCE_UNITS = 'Feet'
 
-  DISCHARGE_TIME_PER_PASSENGER = 3.0
+  DISCHARGE_TIME_PER_PASSENGER = 2.0
   DOOR_WAIT_TIME = 3.0
-  LOAD_TIME_PER_PASSENGER = 3.0
+  LOAD_TIME_PER_PASSENGER = 2.0
 
   PASSENGER_LIMIT = 10
   WEIGHT_LIMIT = 2000
@@ -49,7 +49,7 @@ class Elevator
       if Simulation::time >= @e_status[:time]
         if !@destinations.empty?
           @e_status[:time] = Simulation::time if @e_status[:time] === 0.0
-          car_move(@destinations[0] <=> @e_status[:location])
+          car_move(@destinations.first <=> @e_status[:location])
         else
           @e_status[:direction] = '--'
           break if drain_queue
@@ -73,31 +73,14 @@ private
     execute_command { door_open }
 
     # Discharge cycle.
-    discharge = @passengers[@e_status[:location]][:discharge]
-    if discharge.positive?
-      advance_next_command_time(discharge * DISCHARGE_TIME_PER_PASSENGER)
-      @passengers[@e_status[:location]][:discharge] = 0
-      msg "discharged #{discharge}"
-    end
+    discharge_count = discharge_passengers
+    msg "discharged #{discharge_count}" if discharge_count.positive?
 
     # Pickup cycle.
-    pickup_count = 0
-    @semaphore.synchronize {
-      waiters = @floors[@e_status[:location]][:waiters]
-      waiters.delete_if do |person|
-        break if @riders[:count] == PASSENGER_LIMIT
-        break if @riders[:weight] + person.weight > WEIGHT_LIMIT
-        @riders[:persons] << person
-        @riders[:count] += 1
-        @riders[:weight] += person.weight
-        advance_next_command_time(LOAD_TIME_PER_PASSENGER)
-        pickup_count += 1
-        true
-      end
-    }
+    pickup_count = pickup_passengers
     msg "picked up #{pickup_count}" if pickup_count.positive?
 
-    if (discharge + pickup_count).zero?
+    if (discharge_count + pickup_count).zero?
       msg 'waiting'
       advance_next_command_time(DOOR_WAIT_TIME)
     end
@@ -163,6 +146,43 @@ private
 
   def msg(text)
     puts "Time: %5.2f: Elevator #{@id}: #{text}" % @e_status[:time]
+  end
+
+  # Pickup passengers from floor's wait list.
+  def pickup_passengers
+    pickup_count = 0
+    @semaphore.synchronize {
+      waiters = @floors[@e_status[:location]][:waiters]
+      waiters.delete_if do |person|
+        break if @riders[:count] == PASSENGER_LIMIT
+        break if @riders[:weight] + person.weight > WEIGHT_LIMIT
+        @riders[:persons] << person
+        @riders[:count]  += 1
+        @riders[:weight] += person.weight
+        advance_next_command_time(LOAD_TIME_PER_PASSENGER)
+        pickup_count += 1
+        @destinations << person.destination if !@destinations.include? person.destination
+        true
+      end
+    }
+    pickup_count
+  end
+
+  # Discharge riders to destination floor.
+  def discharge_passengers
+    discharge_count = 0
+    @riders[:persons].delete_if do |person|
+      next if !person.destination.eql? @e_status[:location]
+      @semaphore.synchronize {
+        @floors[@e_status[:location]][:occupants] << person
+      }
+      @riders[:count]  -= 1
+      @riders[:weight] -= person.weight
+      advance_next_command_time(DISCHARGE_TIME_PER_PASSENGER)
+      discharge_count += 1
+      true
+    end
+    discharge_count
   end
 
   def process_floor_request(request)
