@@ -5,9 +5,14 @@ class Elevator
   DISTANCE_PER_SECOND =  4.0
   DISTANCE_UNITS = 'Feet'
 
+  CAR_START = 1.0
+  CAR_STOP = 1.0
+  DOOR_CLOSE = 2.0
+  DOOR_OPEN = 2.0
   DISCHARGE_TIME_PER_PASSENGER = 2.0
   DOOR_WAIT_TIME = 3.0
   LOAD_TIME_PER_PASSENGER = 2.0
+  LOOP_DELAY = 0.25   # seconds.
 
   PASSENGER_LIMIT = 10
   WEIGHT_LIMIT = 2000
@@ -21,7 +26,7 @@ class Elevator
     @semaphore = semaphore
     @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }  # passenger demand by floor.
     @e_status = e_status                # Shared memory status. Read-only in other threads.
-    @e_status[:car]       = 'holding'   # car motion.
+    @e_status[:car]       = 'stopped'   # car motion.
     @e_status[:direction] = '--'        # car direction.
     @e_status[:distance]  = 0.0         # cumulative distance traveled.
     @e_status[:door]      = 'closed'    # door status.
@@ -55,7 +60,7 @@ class Elevator
           break if drain_queue
         end
       end
-      sleep 0.25
+      sleep LOOP_DELAY
     end
     msg 'done'
   end
@@ -74,11 +79,11 @@ private
 
     # Discharge cycle.
     discharge_count = discharge_passengers
-    msg "discharged #{discharge_count}" if discharge_count.positive?
+    msg "discharging #{discharge_count}" if discharge_count.positive?
 
     # Pickup cycle.
     pickup_count = pickup_passengers
-    msg "picked up #{pickup_count}" if pickup_count.positive?
+    msg "picking up #{pickup_count}" if pickup_count.positive?
 
     if (discharge_count + pickup_count).zero?
       msg 'waiting'
@@ -92,31 +97,39 @@ private
       execute_command { car_arrival }
       @destinations.shift
     else
-      execute_command { car_start }
       @e_status[:direction] = floors.negative? ? 'dn' : 'up'
       @e_status[:location] += floors
       @e_status[:distance] += floors.abs * DISTANCE_PER_FLOOR
+      execute_command { car_start }
       advance_next_command_time(floors.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
       msg "floor #{@e_status[:location]}"
     end
   end
 
   def car_start
-    if @e_status[:car].eql? 'holding'
+    if @e_status[:car].eql? 'stopped'
       execute_command { door_close }
-      msg 'starting'
+      msg "starting #{@e_status[:direction]}"
       @e_status[:car] = 'moving'
-      advance_next_command_time(0.25)
-      msg 'started'
+      advance_next_command_time(CAR_START)
+      execute_command {car_status}
+    end
+  end
+
+  def car_status
+    if @e_status[:car].eql? 'stopped'
+      msg "#{@e_status[:car]} on #{@e_status[:location]}"
+    else
+      msg "#{@e_status[:car]} #{@e_status[:direction]}"
     end
   end
 
   def car_stop
     if @e_status[:car].eql? 'moving'
       msg "stopping on #{@e_status[:location]}"
-      @e_status[:car] = 'holding'
-      advance_next_command_time(1.0)
-      msg "stopped on #{@e_status[:location]}"
+      @e_status[:car] = 'stopped'
+      advance_next_command_time(CAR_STOP)
+      execute_command {car_status}
     end
   end
 
@@ -124,8 +137,8 @@ private
     if !@e_status[:door].eql? 'closed'
       msg 'door closing'
       @e_status[:door] = 'closed'
-      advance_next_command_time(2.0)
-      msg "door #{@e_status[:door]}"
+      advance_next_command_time(DOOR_CLOSE)
+      execute_command {door_status}
     end
   end
 
@@ -133,19 +146,22 @@ private
     if !@e_status[:door].eql? 'open'
       msg 'door opening'
       @e_status[:door] = 'open'
-      advance_next_command_time(2.0)
-      msg "door #{@e_status[:door]}"
+      advance_next_command_time(DOOR_OPEN)
+      execute_command {door_status}
     end
   end
 
+  def door_status
+    msg "door #{@e_status[:door]}"
+  end
+
   def execute_command
-    sleep 0.25 until Simulation::time >= @e_status[:time]
+    sleep LOOP_DELAY until Simulation::time >= @e_status[:time]
     yield
-# msg "Simulation Time: #{@e_status[:time]}"
   end
 
   def msg(text)
-    puts "Time: %5.2f: Elevator #{@id}: #{text}" % @e_status[:time]
+    Simulation::msg "Elevator #{@id}: #{text}"
   end
 
   # Pickup passengers from floor's wait list.
@@ -188,7 +204,5 @@ private
   def process_floor_request(request)
     floor = request[:floor].to_i
     @destinations << floor
-    # @passengers[floor][:pickup] += request[:pickup].length
-    # request[:pickup].each { |dest_floor| @passengers[dest_floor][:discharge] += 1 }
   end
 end

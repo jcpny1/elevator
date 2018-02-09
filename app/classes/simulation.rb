@@ -6,7 +6,7 @@ class Simulation
   NUM_OCCUPANTS = 20
   LOOP_DELAY = 0.25   # seconds.
   LOOP_TIME  = 1.0    # seconds.
-  STATIC_SEED = 100
+  STATIC_SEED = 101
 
   @@simulation_time = 0.0  # seconds
 
@@ -20,26 +20,30 @@ class Simulation
     @commands   = create_commands
   end
 
+  def self.msg(text)
+    puts "Time: %5.2f: #{text}" % Simulation::time
+  end
+
   def run
     while !@commands.empty?
       if @commands[0][:time] <= Simulation::time
-puts @commands[0]
+Simulation::msg "Simulator: #{@commands[0]}"
         @controller[:queue] << @commands[0]
         @commands.shift
       end
       sleep LOOP_DELAY
       @@simulation_time += LOOP_TIME
-puts Simulation::time
+Simulation::msg 'Simulator: '
     end
 
     # Keep clock running while waiting for elevators to complete their commands.
     while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
       sleep LOOP_DELAY
       @@simulation_time += LOOP_TIME
-puts Simulation::time
+Simulation::msg 'Simulator: '
     end
 
-    puts "Simulation done. Simulated time: #{Simulation::time}"
+Simulation::msg "Simulator: Simulation done. Simulated time: #{Simulation::time}"
 
     # Clean up controller.
     @controller[:thread].join()
@@ -49,7 +53,7 @@ puts Simulation::time
     @elevators.each do |elevator|
       elevator[:thread].join()
       elevator[:queue].close
-      puts "Elevator #{elevator[:id]}: #{elevator[:status]}"
+      Simulation::msg "Simulator: Elevator #{elevator[:id]}: #{elevator[:status]}"
     end
   end
 
