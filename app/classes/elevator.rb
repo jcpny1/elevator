@@ -5,18 +5,20 @@ class Elevator
   DISTANCE_PER_SECOND =  4.0
   DISTANCE_UNITS = 'Feet'
 
-  def initialize(id, controller_q, e_status)
+  def initialize(id, controller_q, e_status, floors, semaphore)
     @id = id
     @controller_q = controller_q
-    @destinations = []                        # floors to visit ordered by visit order.
+    @destinations = []                  # floors to visit ordered by visit order.
+    @floors = floors                    # read-write by simulation and elevator. Protect with mutex semaphore.
+    @semaphore = semaphore
     @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }  # passenger demand by floor.
-    @e_status = e_status
-    @e_status[:car]       = 'holding'         # car motion.
-    @e_status[:direction] = '--'              # car direction.
-    @e_status[:distance]  = 0.0               # cumulative distance traveled.
-    @e_status[:door]      = 'closed'          # door status.
-    @e_status[:location]  = 1                 # floor.
-    @e_status[:time]      = Simulation::time  # this status effective time.
+    @e_status = e_status                # Shared memory status. Read-only in other threads.
+    @e_status[:car]       = 'holding'   # car motion.
+    @e_status[:direction] = '--'        # car direction.
+    @e_status[:distance]  = 0.0         # cumulative distance traveled.
+    @e_status[:door]      = 'closed'    # door status.
+    @e_status[:location]  = 1           # floor.
+    @e_status[:time]      = 0.0         # this status effective time.
     msg 'active'
   end
 
@@ -24,7 +26,7 @@ class Elevator
     drain_queue = false
     while 1
       # Check controller for incoming commands.
-      if @controller_q.length > 0
+      while !@controller_q.empty?
         request = @controller_q.deq
         case request[:cmd]
         when 'CALL', 'GOTO'
@@ -32,12 +34,13 @@ class Elevator
         when 'END'
           drain_queue = true
         else
-          msg '***Unknown command***'
+          raise "Invalid command: #{request[:cmd]}."
         end
       end
       # Execute next command.
       if Simulation::time >= @e_status[:time]
-        if @destinations.length > 0
+        if !@destinations.empty?
+          @e_status[:time] = Simulation::time if @e_status[:time] === 0.0
           car_move(@destinations[0] <=> @e_status[:location])
         else
           @e_status[:direction] = '--'
@@ -68,14 +71,19 @@ private
       msg "discharged #{discharge}"
     end
 
-    pickup = @passengers[@e_status[:location]][:pickup]
-    if pickup > 0
-      advance_next_command_time(pickup * 3.0)
-      @passengers[@e_status[:location]][:pickup] = 0
-      msg "picked up #{pickup}"
-    end
+    # pickup = @passengers[@e_status[:location]][:pickup]
+    pickup = []
+    @semaphore.synchronize {
+      pickup = @floors[@e_status[:location]][:waiters]
+      if !pickup.empty?
+        advance_next_command_time(pickup.length * 3.0)
+      # @passengers[@e_status[:location]][:pickup] = 0
+        @floors[@e_status[:location]][:waiters] = []
+        msg "picked up #{pickup.length}"
+      end
+    }
 
-    if (discharge + pickup) === 0
+    if (discharge + pickup.length) === 0
       msg 'waiting'
       advance_next_command_time(3.0)
     end
@@ -146,7 +154,7 @@ private
   def process_floor_request(request)
     floor = request[:floor].to_i
     @destinations << floor
-    @passengers[floor][:pickup] += request[:pickup].length
-    request[:pickup].each { |dest_floor| @passengers[dest_floor][:discharge] += 1 }
+    # @passengers[floor][:pickup] += request[:pickup].length
+    # request[:pickup].each { |dest_floor| @passengers[dest_floor][:discharge] += 1 }
   end
 end

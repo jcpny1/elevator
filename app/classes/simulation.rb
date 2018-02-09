@@ -1,8 +1,3 @@
-require 'pry'
-require_relative 'app/classes/controller'
-require_relative 'app/classes/elevator'
-require_relative 'app/classes/person'
-
 # Elevator operation simulator.
 class Simulation
 
@@ -13,9 +8,11 @@ class Simulation
   @@simulation_time = 0.0  # seconds
 
   def initialize
+    @rng        = Random.new
+    @semaphore  = Mutex.new
     @occupants  = create_occupants(NUM_OCCUPANTS)
-    @floors     = create_floors(NUM_FLOORS, @occupants)
-    @elevators  = create_elevators(NUM_ELEVATORS)
+    @floors     = create_floors(NUM_FLOORS, @occupants)  # read-write by simulation and elevator. Protect with mutex semaphore.
+    @elevators  = create_elevators(NUM_ELEVATORS, @floors)
     @controller = create_controller(@elevators)
     @commands   = create_commands
   end
@@ -36,6 +33,7 @@ puts Simulation::time
     while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
       sleep 1.0
       @@simulation_time += 1.0
+puts Simulation::time
     end
 
     puts "Simulation done. Simulated time: #{Simulation::time}"
@@ -61,7 +59,7 @@ private
   # Create simulation commands.
   def create_commands
     commands = []
-    commands << {time: 3.0, cmd: 'CALL', floor: 1, direction: 'up', pickup: [3,2,4]}
+    commands << {time: 3.0, cmd: 'CALL', floor: 1, direction: 'up'}
     commands << {time: 6.0, cmd: 'END'}
   end
 
@@ -73,12 +71,12 @@ private
   end
 
   # Create elevators.
-  def create_elevators(num)
+  def create_elevators(num, floors)
     elevators = []
     num.times do |i|
       e_queue  = Queue.new
       e_status = Hash.new
-      e_thread = Thread.new("#{i}") { |id| Elevator.new(id, e_queue, e_status).run }
+      e_thread = Thread.new("#{i}") { |id| Elevator.new(id, e_queue, e_status, floors, @semaphore).run }
       elevators << { id: i, queue: e_queue, thread: e_thread, status: e_status }
     end
     elevators
@@ -88,19 +86,17 @@ private
   def create_floors(num, occupants)
     floors = []
     num.times { |i| floors << { occupants: [], waiters: [] } }
-    floors[1][:occupants] = occupants
+    floors[1][:waiters] = occupants
     floors
   end
 
   # Create occupants.
   def create_occupants(num)
     occupants = []
-    num.times { |i| NUM_OCCUPANTS.times { |i| occupants << Person.new(i, (i%(NUM_FLOORS-2))+2) } }
+    num.times { |i| occupants << Person.new(i, @rng.rand(2..NUM_FLOORS-1)) }
     occupants
   end
 end
-
-  Simulation.new.run
 
   #
   # puts '  GOTO 6'

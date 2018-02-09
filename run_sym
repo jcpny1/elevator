@@ -1,1 +1,1 @@
-time ruby ./simulation.rb
+time ruby ./run_sim.rb

@@ -7,18 +7,19 @@ class Controller
   end
 
   def run
-    while 1
-      if @request_q.length > 0
+    keep_running = true
+    while keep_running
+      while !@request_q.empty?
         request = @request_q.deq
         if request[:cmd] === 'END'
           @elevators.each { |elevator| elevator[:queue] << request }
-          break
+          keep_running = false
         else
           elevator = select_elevator(request)
           elevator[:queue] << request
         end
       end
-      sleep 0.125
+      sleep 0.25
     end
   end
 
