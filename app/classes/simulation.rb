@@ -1,14 +1,14 @@
 # Elevator operation simulator.
 class Simulation
 
-  NUM_ELEVATORS =  1
-  NUM_FLOORS    =  7  # => active floors 1 -> NUM_FLOORS.
-  NUM_OCCUPANTS = 20
-  LOOP_DELAY = 0.25   # seconds.
-  LOOP_TIME  = 1.0    # seconds.
-  STATIC_SEED = 101
+  NUM_ELEVATORS =   1
+  NUM_FLOORS    =   7       # => active floors 1 -> NUM_FLOORS.
+  NUM_OCCUPANTS =  20
+  LOOP_DELAY    =   0.125   # seconds.
+  LOOP_TIME     =   1.0     # seconds.
+  STATIC_SEED   = 101
 
-  @@simulation_time = 0.0  # seconds
+  @@simulation_time = 0.0   # seconds
 
   def initialize
     @rng        = Random.new(STATIC_SEED)
@@ -33,14 +33,14 @@ Simulation::msg "Simulator: #{@commands[0]}"
       end
       sleep LOOP_DELAY
       @@simulation_time += LOOP_TIME
-Simulation::msg 'Simulator: '
+# Simulation::msg 'Simulator: '
     end
 
     # Keep clock running while waiting for elevators to complete their commands.
     while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
       sleep LOOP_DELAY
       @@simulation_time += LOOP_TIME
-Simulation::msg 'Simulator: '
+# Simulation::msg 'Simulator: '
     end
 
 Simulation::msg "Simulator: Simulation done. Simulated time: #{Simulation::time}"
