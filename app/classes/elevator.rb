@@ -1,6 +1,5 @@
-require 'pry'
 # An ElevatorCar moves people between floors of a building.
-class ElevatorCar
+class Elevator
 
   DISTANCE_PER_FLOOR  = 12.0
   DISTANCE_PER_SECOND =  4.0
@@ -9,15 +8,15 @@ class ElevatorCar
   def initialize(id, controller_q, e_status)
     @id = id
     @controller_q = controller_q
-    @destinations = []  # floors to visit ordered by visit order.
-    @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }
+    @destinations = []                        # floors to visit ordered by visit order.
+    @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }  # passenger demand by floor.
     @e_status = e_status
-    @e_status[:car]       = 'holding'
-    @e_status[:direction] = '--'
-    @e_status[:distance]  = 0.0
-    @e_status[:door]      = 'closed'
-    @e_status[:location]  = 1
-    @e_status[:time]      = Controller::time
+    @e_status[:car]       = 'holding'         # car motion.
+    @e_status[:direction] = '--'              # car direction.
+    @e_status[:distance]  = 0.0               # cumulative distance traveled.
+    @e_status[:door]      = 'closed'          # door status.
+    @e_status[:location]  = 1                 # floor.
+    @e_status[:time]      = Simulation::time  # this status effective time.
     msg 'active'
   end
 
@@ -30,14 +29,14 @@ class ElevatorCar
         case request[:cmd]
         when 'CALL', 'GOTO'
           process_floor_request(request)
-        when Controller::END_OF_SIMULATION
+        when 'END'
           drain_queue = true
         else
           msg '***Unknown command***'
         end
       end
       # Execute next command.
-      if Controller::time >= @e_status[:time]
+      if Simulation::time >= @e_status[:time]
         if @destinations.length > 0
           car_move(@destinations[0] <=> @e_status[:location])
         else
@@ -135,7 +134,7 @@ private
   end
 
   def execute_command
-    sleep 0.25 until Controller::time >= @e_status[:time]
+    sleep 0.25 until Simulation::time >= @e_status[:time]
     yield
 # msg "Simulation Time: #{@e_status[:time]}"
   end

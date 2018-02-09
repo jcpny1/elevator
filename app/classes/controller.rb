@@ -1,29 +1,16 @@
-# A Controller receives requests for elevator services and assigns elevators to service those requests.
+# A Controller receives requests for elevator services from floor call buttons then assigns elevators to service those requests.
+# A Controller may also command an elevator to go to a particluar floor without receiving a call button request.
 class Controller
-
-  END_OF_SIMULATION = 'END SIMULATION'
-  NUM_ELEVATORS = 2
-
-  @@simulation_time = 0.0  # seconds
-
-  def initialize(request_q)
+  def initialize(request_q, elevators)
     @request_q = request_q
-    @elevators = []
-
-    NUM_ELEVATORS.times do |i|
-      e_queue  = Queue.new
-      e_status = Hash.new
-      e_thread = Thread.new("#{i}") { |id| ElevatorCar.new(id, e_queue, e_status).run }
-      @elevators << { id: i, queue: e_queue, thread: e_thread, status: e_status }
-    end
+    @elevators = elevators
   end
 
   def run
-    # Accept a simulator command. Pick an elevator. Pass command to elevator.
     while 1
       if @request_q.length > 0
         request = @request_q.deq
-        if request[:cmd] === END_OF_SIMULATION
+        if request[:cmd] === 'END'
           @elevators.each { |elevator| elevator[:queue] << request }
           break
         else
@@ -32,26 +19,7 @@ class Controller
         end
       end
       sleep 0.125
-      @@simulation_time += 1.0
     end
-
-    # Wait for elevators to complete their commands.
-    while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
-      sleep 0.125
-      @@simulation_time += 1.0
-    end
-
-    # Elevators are done. Clean up.
-    puts "Controller done. Simulated time: #{@@simulation_time}"
-    @elevators.each do |elevator|
-      elevator[:thread].join()
-      elevator[:queue].close
-      puts "Elevator #{elevator[:id]}: #{elevator[:status]}"
-    end
-  end
-
-  def self.time
-    @@simulation_time
   end
 
 private
