@@ -134,6 +134,24 @@ private
     end
   end
 
+  # Discharge riders to destination floor.
+  def discharge_passengers
+    discharge_count = 0
+    @riders[:persons].delete_if do |person|
+      next if !person.destination.eql? @e_status[:location]
+      @semaphore.synchronize {
+        @floors[@e_status[:location]][:occupants] << person
+      }
+      person.on_floor(Simulation::time)
+      @riders[:count]  -= 1
+      @riders[:weight] -= person.weight
+      advance_next_command_time(DISCHARGE_TIME_PER_PASSENGER)
+      discharge_count += 1
+      true
+    end
+    discharge_count
+  end
+
   def door_close
     if !@e_status[:door].eql? 'closed'
       msg 'door closing'
@@ -162,7 +180,7 @@ private
   end
 
   def msg(text)
-    Simulation::msg "Elevator #{@id}: #{text}"
+    Simulation::msg "Elevator #{@id}: #{text}" if Simulation::debug
   end
 
   # Pickup passengers from floor's wait list.
@@ -174,6 +192,7 @@ private
         break if @riders[:count] == PASSENGER_LIMIT
         break if @riders[:weight] + person.weight > WEIGHT_LIMIT
         @riders[:persons] << person
+        person.on_elevator(Simulation::time)
         @riders[:count]  += 1
         @riders[:weight] += person.weight
         advance_next_command_time(LOAD_TIME_PER_PASSENGER)
@@ -183,23 +202,6 @@ private
       end
     }
     pickup_count
-  end
-
-  # Discharge riders to destination floor.
-  def discharge_passengers
-    discharge_count = 0
-    @riders[:persons].delete_if do |person|
-      next if !person.destination.eql? @e_status[:location]
-      @semaphore.synchronize {
-        @floors[@e_status[:location]][:occupants] << person
-      }
-      @riders[:count]  -= 1
-      @riders[:weight] -= person.weight
-      advance_next_command_time(DISCHARGE_TIME_PER_PASSENGER)
-      discharge_count += 1
-      true
-    end
-    discharge_count
   end
 
   def process_floor_request(request)

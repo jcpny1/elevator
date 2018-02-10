@@ -2,6 +2,7 @@
 # A Controller may also command an elevator to go to a particluar floor without receiving a call button request.
 class Controller
   def initialize(request_q, elevators)
+    @@next_elevator = 0
     @request_q = request_q
     @elevators = elevators
   end
@@ -26,6 +27,9 @@ class Controller
 private
 
   def select_elevator(e)
-    @elevators[0]
+    elevator = @elevators[@@next_elevator]
+    @@next_elevator += 1
+    @@next_elevator = 0 if @@next_elevator === @elevators.length
+    elevator
   end
 end
