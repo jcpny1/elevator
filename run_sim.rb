@@ -1,7 +1,8 @@
 require 'pry'
 require_relative 'app/classes/controller'
 require_relative 'app/classes/elevator'
-require_relative 'app/classes/person'
+require_relative 'app/classes/floor'
+require_relative 'app/classes/occupant'
 require_relative 'app/classes/simulation'
 
 # logic:
@@ -23,7 +24,8 @@ require_relative 'app/classes/simulation'
 
 # debug true|false: Execute debug logic, messages, etc., if any.
 
-puts 'Run 1'
-Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false).run
-puts 'Run 2'
-Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false).run
+puts "Run 1: logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:true"
+Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:true).run
+puts
+puts "Run 2: logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:true"
+Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:true).run

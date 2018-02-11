@@ -1,6 +1,9 @@
 # A Controller receives requests for elevator services from floor call buttons then assigns elevators to service those requests.
 # A Controller may also command an elevator to go to a particluar floor without receiving a call button request.
 class Controller
+
+  CONTROLLER_LOOP_DELAY = 0.125   # seconds.
+
   def initialize(request_q, elevators)
     @@next_elevator = 0
     @request_q = request_q
@@ -12,15 +15,15 @@ class Controller
     while keep_running
       while !@request_q.empty?
         request = @request_q.deq
-        if request[:cmd] === 'END'
-          @elevators.each { |elevator| elevator[:queue] << request }
-          keep_running = false
-        else
-          elevator = select_elevator(request)
-          elevator[:queue] << request
-        end
+        elevator = select_elevator(request)
+        elevator[:car].controller_q << request
+        # if request[:cmd] === 'END'
+        #   @elevators.each { |elevator| elevator[:queue] << request }
+        #   keep_running = false
+        # else
+        # end
       end
-      sleep 0.25
+      sleep CONTROLLER_LOOP_DELAY
     end
   end
 

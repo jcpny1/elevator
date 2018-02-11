@@ -1,5 +1,7 @@
-# An ElevatorCar moves people between floors of a building.
+# An Elevator moves Persons between floors of a building.
 class Elevator
+
+  attr_reader :controller_q, :elevator_status
 
   DISTANCE_PER_FLOOR  = 12.0
   DISTANCE_PER_SECOND =  4.0
@@ -17,21 +19,21 @@ class Elevator
   PASSENGER_LIMIT = 10
   WEIGHT_LIMIT = 2000
 
-  def initialize(id, controller_q, e_status, floors, semaphore)
+  def initialize(id, controller_q, floors)
     @id = id
-    @controller_q = controller_q
-    @destinations = []                  # floors to visit ordered by visit order.
-    @floors = floors                    # read-write by simulation and elevator. Protect with mutex semaphore.
-    @riders = {count: 0, weight: 0, persons: []}  # elevator occupants
-    @semaphore = semaphore
-    @passengers = Hash.new { |hash, key| hash[key] = {pickup: 0, discharge: 0} }  # passenger demand by floor.
-    @e_status = e_status                # Shared memory status. Read-only in other threads.
-    @e_status[:car]       = 'stopped'   # car motion.
-    @e_status[:direction] = '--'        # car direction.
-    @e_status[:distance]  = 0.0         # cumulative distance traveled.
-    @e_status[:door]      = 'closed'    # door status.
-    @e_status[:location]  = 1           # floor.
-    @e_status[:time]      = 0.0         # this status effective time.
+    @controller_q = controller_q   # to receive commands from the controller.
+    @destinations = []             # floors to visit ordered by visit order.
+    @floors = floors               # on each floor, load from waitlist, discharge to occupant list.
+
+    # Statistics  (multithreaded r/o access. r/w in this thread only.)
+    @elevator_status = {}
+    @elevator_status[:car]       = 'stopped'   # car motion.
+    @elevator_status[:direction] = '--'        # car direction.
+    @elevator_status[:distance]  = 0.0         # cumulative distance traveled.
+    @elevator_status[:door]      = 'closed'    # door status.
+    @elevator_status[:location]  = 1           # floor.
+    @elevator_status[:riders]    = {count: 0, weight: 0, occupants: []}  # occupants
+    @elevator_status[:time]      = 0.0         # this status effective time.
     msg 'active'
   end
 
@@ -51,12 +53,12 @@ class Elevator
         end
       end
       # Execute next command.
-      if Simulation::time >= @e_status[:time]
+      if Simulation::time >= @elevator_status[:time]
         if !@destinations.empty?
-          @e_status[:time] = Simulation::time if @e_status[:time] === 0.0
-          car_move(@destinations.first <=> @e_status[:location])
+          @elevator_status[:time] = Simulation::time if @elevator_status[:time] === 0.0
+          car_move(@destinations.first <=> @elevator_status[:location])
         else
-          @e_status[:direction] = '--'
+          @elevator_status[:direction] = '--'
           break if drain_queue
         end
       end
@@ -69,13 +71,17 @@ private
 
   # Advance the time the given amount.
   def advance_next_command_time(num)
-    @e_status[:time] += num
+    @elevator_status[:time] += num
   end
 
   # Execute arrival procedures.
   def car_arrival
     execute_command { car_stop }
     execute_command { door_open }
+
+    floor = @floors[@elevator_status[:location]]
+    floor.cancel_call_dn
+    floor.cancel_call_up
 
     # Discharge cycle.
     discharge_count = discharge_passengers
@@ -93,42 +99,42 @@ private
   end
 
   # Move number of floors indicated. -# = down, +# = up, 0 = arrived.
-  def car_move(floors)
-    if floors.zero?
+  def car_move(floor)
+    if floor.zero?
       execute_command { car_arrival }
       @destinations.shift
     else
-      @e_status[:direction] = floors.negative? ? 'dn' : 'up'
-      @e_status[:location] += floors
-      @e_status[:distance] += floors.abs * DISTANCE_PER_FLOOR
+      @elevator_status[:direction] = floor.negative? ? 'dn' : 'up'
+      @elevator_status[:location] += floor
+      @elevator_status[:distance] += floor.abs * DISTANCE_PER_FLOOR
       execute_command { car_start }
-      advance_next_command_time(floors.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
-      msg "floor #{@e_status[:location]}"
+      advance_next_command_time(floor.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
+      msg "floor #{@elevator_status[:location]}"
     end
   end
 
   def car_start
-    if @e_status[:car].eql? 'stopped'
+    if @elevator_status[:car].eql? 'stopped'
       execute_command { door_close }
-      msg "starting #{@e_status[:direction]}"
-      @e_status[:car] = 'moving'
+      msg "starting #{@elevator_status[:direction]}"
+      @elevator_status[:car] = 'moving'
       advance_next_command_time(CAR_START)
       execute_command {car_status}
     end
   end
 
   def car_status
-    if @e_status[:car].eql? 'stopped'
-      msg "#{@e_status[:car]} on #{@e_status[:location]}"
+    if @elevator_status[:car].eql? 'stopped'
+      msg "#{@elevator_status[:car]} on #{@elevator_status[:location]}"
     else
-      msg "#{@e_status[:car]} #{@e_status[:direction]}"
+      msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}"
     end
   end
 
   def car_stop
-    if @e_status[:car].eql? 'moving'
-      msg "stopping on #{@e_status[:location]}"
-      @e_status[:car] = 'stopped'
+    if @elevator_status[:car].eql? 'moving'
+      msg "stopping on #{@elevator_status[:location]}"
+      @elevator_status[:car] = 'stopped'
       advance_next_command_time(CAR_STOP)
       execute_command {car_status}
     end
@@ -137,45 +143,43 @@ private
   # Discharge riders to destination floor.
   def discharge_passengers
     discharge_count = 0
-    @riders[:persons].delete_if do |person|
-      next if !person.destination.eql? @e_status[:location]
-      @semaphore.synchronize {
-        @floors[@e_status[:location]][:occupants] << person
-      }
-      person.on_floor(Simulation::time)
-      @riders[:count]  -= 1
-      @riders[:weight] -= person.weight
+    floor = @floors[@elevator_status[:location]]
+    passengers = @elevator_status[:riders][:occupants].find_all { |occupant| occupant.destination === floor.id }
+    passengers.each do |passenger|
+      floor.enter_floor(passenger)
+      @elevator_status[:riders][:count]  -= 1
+      @elevator_status[:riders][:weight] -= passenger.weight
+      @elevator_status[:riders][:occupants].delete(passenger)
       advance_next_command_time(DISCHARGE_TIME_PER_PASSENGER)
       discharge_count += 1
-      true
     end
     discharge_count
   end
 
   def door_close
-    if !@e_status[:door].eql? 'closed'
+    if !@elevator_status[:door].eql? 'closed'
       msg 'door closing'
-      @e_status[:door] = 'closed'
+      @elevator_status[:door] = 'closed'
       advance_next_command_time(DOOR_CLOSE)
       execute_command {door_status}
     end
   end
 
   def door_open
-    if !@e_status[:door].eql? 'open'
+    if !@elevator_status[:door].eql? 'open'
       msg 'door opening'
-      @e_status[:door] = 'open'
+      @elevator_status[:door] = 'open'
       advance_next_command_time(DOOR_OPEN)
       execute_command {door_status}
     end
   end
 
   def door_status
-    msg "door #{@e_status[:door]}"
+    msg "door #{@elevator_status[:door]}"
   end
 
   def execute_command
-    sleep LOOP_DELAY until Simulation::time >= @e_status[:time]
+    sleep LOOP_DELAY until Simulation::time >= @elevator_status[:time]
     yield
   end
 
@@ -186,21 +190,20 @@ private
   # Pickup passengers from floor's wait list.
   def pickup_passengers
     pickup_count = 0
-    @semaphore.synchronize {
-      waiters = @floors[@e_status[:location]][:waiters]
-      waiters.delete_if do |person|
-        break if @riders[:count] == PASSENGER_LIMIT
-        break if @riders[:weight] + person.weight > WEIGHT_LIMIT
-        @riders[:persons] << person
-        person.on_elevator(Simulation::time)
-        @riders[:count]  += 1
-        @riders[:weight] += person.weight
-        advance_next_command_time(LOAD_TIME_PER_PASSENGER)
-        pickup_count += 1
-        @destinations << person.destination if !@destinations.include? person.destination
-        true
-      end
-    }
+    floor = @floors[@elevator_status[:location]]
+    passengers = floor.waitlist
+    passengers.each do |passenger|
+      next if !passenger.time_to_board
+      break if @elevator_status[:riders][:count] == PASSENGER_LIMIT
+      break if @elevator_status[:riders][:weight] + passenger.weight > WEIGHT_LIMIT
+      floor.leave_waitlist(passenger).on_elevator(Simulation::time)
+      @elevator_status[:riders][:count]  += 1
+      @elevator_status[:riders][:weight] += passenger.weight
+      @elevator_status[:riders][:occupants] << passenger
+      @destinations << passenger.destination if !@destinations.include? passenger.destination
+      advance_next_command_time(LOAD_TIME_PER_PASSENGER)
+      pickup_count += 1
+    end
     pickup_count
   end
 
