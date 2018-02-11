@@ -1,7 +1,7 @@
 # Elevator operation simulator.
 class Simulation
 
-  SIM_LOOP_DELAY     = 0.125  # (seconds) - sleep delay in simulation loop.
+  SIM_LOOP_DELAY     = 0.01   # (seconds) - sleep delay in simulation loop.
   SIM_LOOP_TIME_INCR = 1.0    # (seconds) - amount of time to advance simulated time for each simulation loop.
   STATIC_RNG_SEED    = 101    # for random number generation.
 

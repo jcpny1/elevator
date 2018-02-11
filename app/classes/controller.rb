@@ -2,7 +2,7 @@
 # A Controller may also command an elevator to go to a particluar floor without receiving a call button request.
 class Controller
 
-  CONTROLLER_LOOP_DELAY = 0.125   # seconds.
+  CONTROLLER_LOOP_DELAY = 0.01  # seconds.
 
   def initialize(request_q, elevators)
     @@next_elevator = 0
