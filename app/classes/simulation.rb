@@ -40,9 +40,10 @@ class Simulation
   def run
     queue_morning_occupants
     run_sym
-    # output_stats
-    # queue_evening_occupants
-    # run_sym
+    output_stats
+    clear_stats
+    queue_evening_occupants
+    run_sym
     output_stats
     # cleanup
   end
@@ -109,6 +110,11 @@ private
     occupants
   end
 
+  def clear_stats
+    @occupants.each { |occupant| occupant.init_stats }
+    @elevators.each { |elevator| elevator[:car].init_stats }
+  end
+
   def output_stats
     total_trips = 0
     total_trip_time = 0.0
@@ -140,6 +146,16 @@ private
     @elevators.each do |elevator|
       distance = elevator[:car].elevator_status[:distance]
       Simulation::msg "Simulator:       Elevator #{elevator[:id]} dx: %5.1f" % distance
+    end
+  end
+
+  def queue_evening_occupants
+    @occupants.each do |occupant|
+      destination_floor = 1
+      arrival_time = @@rng.rand(Simulation::time..Simulation::time+600)  # TODO do a normal distribution of arrival time around 5pm +/- 15
+      current_floor = occupant.destination
+      occupant.enq(destination_floor, arrival_time)
+      @floors[current_floor].enter_waitlist(occupant)
     end
   end
 
@@ -200,14 +216,4 @@ def cleanup
     elevator[:queue].close
   end
 end
-
-
-  def queue_evening_occupants
-    @semaphore.synchronize {
-      @floors.each do |floor|
-        floor[:occupants].each { |person| person.destination = 1 }
-        floor[:waiters] << floor[:occupants]
-      end
-    }
-  end
 end

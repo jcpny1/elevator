@@ -29,12 +29,17 @@ class Elevator
     @elevator_status = {}
     @elevator_status[:car]       = 'stopped'   # car motion.
     @elevator_status[:direction] = '--'        # car direction.
-    @elevator_status[:distance]  = 0.0         # cumulative distance traveled.
     @elevator_status[:door]      = 'closed'    # door status.
     @elevator_status[:location]  = 1           # floor.
     @elevator_status[:riders]    = {count: 0, weight: 0, occupants: []}  # occupants
     @elevator_status[:time]      = 0.0         # this status effective time.
+    init_stats
     msg 'active'
+  end
+
+  # Runtime statistics
+  def init_stats
+    @elevator_status[:distance]  = 0.0         # cumulative distance traveled.
   end
 
   def run

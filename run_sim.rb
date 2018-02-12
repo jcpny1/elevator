@@ -24,8 +24,8 @@ require_relative 'app/classes/simulation'
 
 # debug true|false: Execute debug logic, messages, etc., if any.
 
-puts "Run 1: logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false"
-Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false).run
+puts "Run 1: logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:true"
+Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:true).run
 puts
 puts "Run 2: logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false"
 Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false).run

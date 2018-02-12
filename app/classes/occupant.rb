@@ -14,8 +14,11 @@ class Occupant < Person
     super(id, weight)
     @destination = 0    # the floor an occupant wishes to travel to.
     @enq_time    = 0.0  # the time at which an occupant will arrive at an elevator lobby in order to proceed to destination.
+    init_stats
+  end
 
-    # Trip statistics
+  # Trip statistics
+  def init_stats
     @trips              = 0
     @total_ride_time    = 0.0
     @total_trip_time    = 0.0
@@ -23,7 +26,6 @@ class Occupant < Person
     @max_ride_time      = 0.0
     @max_trip_time      = 0.0
     @max_wait_time      = 0.0
-
     # Interim calculations
     @on_waitlist_time   = 0.0
     @on_elevator_time   = 0.0
