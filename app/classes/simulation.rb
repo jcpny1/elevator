@@ -19,10 +19,8 @@ class Simulation
     @@simulation_time = 0.0   # seconds
     @floors     = create_floors(@num_floors)
     @elevators  = create_elevators(@num_elevators, @floors)
-    @controller = create_controller(@elevators)
+    @controller = create_controller(@elevators, @num_floors, @logic)
     @occupants  = create_occupants(@num_occupants)
-
-    # @old_waiter_length = Array.new(@floors.length, 0)
   end
 
   def self.debug
@@ -77,9 +75,9 @@ private
   end
 
   # Create controller.
-  def create_controller(elevators)
+  def create_controller(elevators, num_floors, logic)
     q = Queue.new
-    c = Controller.new(q, elevators)
+    c = Controller.new(q, elevators, num_floors, logic)
     t = Thread.new { c.run }
     controller = {queue: q, thread: t, controller: controller}
   end
@@ -149,16 +147,17 @@ private
     end
   end
 
+  # Place all occupants on their floor's waitlist at random times with destination = first floor.
   def queue_evening_occupants
     @occupants.each do |occupant|
-      destination_floor = 1
       arrival_time = @@rng.rand(Simulation::time..Simulation::time+600)  # TODO do a normal distribution of arrival time around 5pm +/- 15
       current_floor = occupant.destination
-      occupant.enq(destination_floor, arrival_time)
+      occupant.enq(1, arrival_time)
       @floors[current_floor].enter_waitlist(occupant)
     end
   end
 
+  # Place all occupants on first floor waitlist at random times.
   def queue_morning_occupants
     @occupants.each do |occupant|
       destination_floor = @@rng.rand(2..@num_floors-1)
@@ -179,7 +178,6 @@ private
       no_waiters = @floors.all? { |floor| floor.waitlist.length.zero? }
       no_riders = @elevators.all? { |elevator| elevator[:car].elevator_status[:riders][:occupants].length.zero?}
       break if no_waiters && no_riders
-
       sleep SIM_LOOP_DELAY
       @@simulation_time += SIM_LOOP_TIME_INCR
     end

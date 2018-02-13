@@ -37,6 +37,22 @@ class Elevator
     msg 'active'
   end
 
+  def current_floor
+    @elevator_status[:location]
+  end
+
+  def is_going_down?
+    @elevator_status[:direction] === 'dn'
+  end
+
+  def is_going_up?
+    @elevator_status[:direction] === 'up'
+  end
+
+  def is_stationary?
+    @elevator_status[:direction] === '--'
+  end
+
   # Runtime statistics
   def init_stats
     @elevator_status[:distance]  = 0.0         # cumulative distance traveled.
@@ -49,8 +65,9 @@ class Elevator
       while !@controller_q.empty?
         request = @controller_q.deq
         case request[:cmd]
-        when 'CALL', 'GOTO'
+        when 'CALL'
           process_floor_request(request)
+puts "ID #{@id} #{request}"
         when 'END'
           drain_queue = true
         else
@@ -85,7 +102,7 @@ private
     execute_command { door_open }
 
     floor = @floors[@elevator_status[:location]]
-    floor.cancel_call_dn
+    floor.cancel_call_dn  # Canceling calls here. If pasengers can't board, they'll have to call again.
     floor.cancel_call_up
 
     # Discharge cycle.
@@ -121,7 +138,7 @@ private
   def car_start
     if @elevator_status[:car].eql? 'stopped'
       execute_command { door_close }
-      msg "starting #{@elevator_status[:direction]}"
+      # msg "starting #{@elevator_status[:direction]}"
       @elevator_status[:car] = 'moving'
       advance_next_command_time(CAR_START)
       execute_command {car_status}
@@ -130,15 +147,16 @@ private
 
   def car_status
     if @elevator_status[:car].eql? 'stopped'
+      # Place all occupants on first floor waitlist at random times.
       msg "#{@elevator_status[:car]} on #{@elevator_status[:location]}"
     else
-      msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}"
+      # msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}"
     end
   end
 
   def car_stop
     if @elevator_status[:car].eql? 'moving'
-      msg "stopping on #{@elevator_status[:location]}"
+      # msg "stopping on #{@elevator_status[:location]}"
       @elevator_status[:car] = 'stopped'
       advance_next_command_time(CAR_STOP)
       execute_command {car_status}
@@ -163,7 +181,7 @@ private
 
   def door_close
     if !@elevator_status[:door].eql? 'closed'
-      msg 'door closing'
+      # msg 'door closing'
       @elevator_status[:door] = 'closed'
       advance_next_command_time(DOOR_CLOSE)
       execute_command {door_status}
@@ -172,7 +190,7 @@ private
 
   def door_open
     if !@elevator_status[:door].eql? 'open'
-      msg 'door opening'
+      # msg 'door opening'
       @elevator_status[:door] = 'open'
       advance_next_command_time(DOOR_OPEN)
       execute_command {door_status}
@@ -180,7 +198,7 @@ private
   end
 
   def door_status
-    msg "door #{@elevator_status[:door]}"
+    # msg "door #{@elevator_status[:door]}"
   end
 
   def execute_command
@@ -213,7 +231,6 @@ private
   end
 
   def process_floor_request(request)
-    floor = request[:floor].to_i
-    @destinations << floor
+    @destinations << request[:floor].to_i
   end
 end

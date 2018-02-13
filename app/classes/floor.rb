@@ -27,14 +27,14 @@ class Floor
   def press_call_dn
     @@floor_semaphore.synchronize {
       @call_dn = true
-      msg "Call Down on #{@id}"
+      msg "Call Down"
     }
   end
 
   def press_call_up
   @@floor_semaphore.synchronize {
     @call_up = true
-    msg "Call Up on #{@id}"
+    msg "Call Up"
   }
   end
 
