@@ -18,7 +18,7 @@ class Simulation
 
     @@simulation_time = 0.0   # seconds
     @floors     = create_floors(@num_floors)
-    @elevators  = create_elevators(@num_elevators, @floors)
+    @elevators  = create_elevators(@num_elevators, @floors, @modifiers)
     @controller = create_controller(@elevators, @num_floors, @logic)
     @occupants  = create_occupants(@num_occupants)
   end
@@ -83,11 +83,12 @@ private
   end
 
   # Create elevators.
-  def create_elevators(elevator_count, floors)
+  def create_elevators(elevator_count, floors, modifiers)
     elevators = []
+    no_pick = modifiers[:NOPICK]
     elevator_count.times do |i|
       elevator_queue  = Queue.new
-      elevator = Elevator.new(i, elevator_queue, floors)
+      elevator = Elevator.new(i, elevator_queue, floors, no_pick)
       elevator_thread = Thread.new { elevator.run }
       elevators << { id: i, thread: elevator_thread, car: elevator }
     end

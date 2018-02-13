@@ -19,11 +19,12 @@ class Elevator
   PASSENGER_LIMIT = 10
   WEIGHT_LIMIT = 2000
 
-  def initialize(id, controller_q, floors)
+  def initialize(id, controller_q, floors, no_pick)
     @id = id
     @controller_q = controller_q   # to receive commands from the controller.
     @destinations = []             # floors to visit ordered by visit order.
     @floors = floors               # on each floor, load from waitlist, discharge to occupant list.
+    @no_pick = no_pick              # when true, do not pick up riders going in the opposite direction.
 
     # Statistics  (multithreaded r/o access. r/w in this thread only.)
     @elevator_status = {}
@@ -217,6 +218,10 @@ private
     passengers = floor.waitlist
     passengers.each do |passenger|
       next if !passenger.time_to_board
+      if @no_pick
+        next if is_going_up? && (passenger.destination < @elevator_status[:location])
+        next if is_going_down? && (passenger.destination > @elevator_status[:location])
+      end
       break if @elevator_status[:riders][:count] == PASSENGER_LIMIT
       break if @elevator_status[:riders][:weight] + passenger.weight > WEIGHT_LIMIT
       floor.leave_waitlist(passenger).on_elevator(Simulation::time)

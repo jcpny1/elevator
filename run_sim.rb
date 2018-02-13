@@ -30,5 +30,5 @@ require_relative 'app/classes/simulation'
 # puts "Run 2: logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false"
 # Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false).run
 # puts
-puts "Run 3: logic:'SSTF', modifiers: {}, floors: 10, elevators: 3, occupants: 100, debug:true"
-Simulation.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 3, occupants: 100, debug:false).run
+puts "Run 3: logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 2, occupants: 100, debug:true"
+Simulation.new(logic:'SSTF', modifiers: {'NOPICK': false}, floors: 10, elevators: 2, occupants: 100, debug:false).run
