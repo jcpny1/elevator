@@ -84,9 +84,8 @@ class Elevator
         request = @controller_q.deq
         case request[:cmd]
         when 'CALL'
-          process_floor_request(request)
           msg "#{request}"
-          msg "Destinations: #{@elevator_status[:destinations].join(', ')}"
+          process_floor_request(request)
         when 'END'
           drain_queue = true
         else
@@ -103,7 +102,7 @@ class Elevator
         else
 # IS NEXT LINE NEEDED?
           @elevator_status[:time] = Simulation::time if @elevator_status[:time] === 0.0
-          destination = find_next_destination(@elevator_status[:destinations])
+          destination = next_destination(@elevator_status[:destinations])
           msg "Next destination: #{destination}, Current location: #{@elevator_status[:location]}"
           car_move(destination <=> @elevator_status[:location])
         end
@@ -124,6 +123,7 @@ private
   def car_arrival
     execute_command { car_stop }
     execute_command { door_open }
+
     # Discharge cycle.
     discharge_count = discharge_passengers
     msg "discharging #{discharge_count}" if discharge_count.positive?
@@ -139,16 +139,17 @@ private
     elsif current_floor === 1  # If at first floor
       @elevator_status[:direction] = 'up'
     end
-
     # Pickup cycle.
     pickup_count = pickup_passengers
     msg "picking up #{pickup_count}" if pickup_count.positive?
 
     destination_direction = @elevator_status[:destinations][current_floor]
-    if destination_direction === 'dn'
-      @floors[current_floor].cancel_call_down
-    elsif destination_direction === 'up'
-      @floors[current_floor].cancel_call_up
+    if destination_direction != '--'
+      if destination_direction === 'dn'
+        @floors[current_floor].cancel_call_down
+      elsif destination_direction === 'up'
+        @floors[current_floor].cancel_call_up
+      end
     end
 
     @elevator_status[:destinations][current_floor] = nil
@@ -220,6 +221,7 @@ msg 'door wait'
       advance_next_command_time(DISCHARGE_TIME_PER_PASSENGER)
       discharge_count += 1
     end
+    @elevator_status[:direction] = '--' if @elevator_status[:riders][:count].zero?
     discharge_count
   end
 
@@ -250,32 +252,55 @@ msg 'door wait'
     yield
   end
 
-  def find_next_destination(destinations)
+  def msg(text)
+    Simulation::msg "Elevator #{@id}: #{text}" if Simulation::debug
+  end
+
+
+  # Are any riders getting off on specified floor?
+  def discharge_on?(floor)
+    @elevator_status[:riders][:occupants].any? { |occupant| occupant.destination === floor }
+  end
+
+
+  def next_destination(destinations)
     destination = nil
-    floor_offset = car_full? ? 1 : 0
+
     if going_up?
       # Return nearest stop above current location.
-      up_index = destinations.slice(current_floor+floor_offset..@elevator_status[:destinations].length-1).index { |destination| !destination.nil? }
+      up_index = destinations.slice(current_floor...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
+      destination = up_index + current_floor
+
+      # If car is full, don't consider current floor as a destination for pickups only.
+      if car_full? && destination === current_floor && !discharge_on?(current_floor)
+        up_index = destinations.slice(current_floor + 1...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
+        destination = up_index + current_floor + 1
+      end
+
       if up_index.nil?
         @elevator_status[:direction] = 'dn'
-      else
-        destination = up_index + current_floor + floor_offset
       end
     end
 
     if going_down?
       # Return nearest stop below current location.
-      down_index = destinations.slice(0..current_floor-floor_offset).rindex { |destination| !destination.nil? }
+      down_index = destinations.slice(0..current_floor).rindex { |destination| !destination.nil? }
+      destination = down_index
+
+      # If car is full, don't consider current floor as a destination.
+      if car_full? && destination === current_floor
+        down_index = destinations.slice(0...current_floor).index { |destination| !destination.nil? }
+        destination = down_index
+      end
+
       if down_index.nil?
         @elevator_status[:direction] = '--'
-      else
-        destination = down_index
       end
     end
 
     if stationary?
       # Return nearest stop to current location and set appropriate direction.
-      up_index = @elevator_status[:destinations].slice(current_floor..@elevator_status[:destinations].length-1).index { |destination| !destination.nil? }
+      up_index = @elevator_status[:destinations].slice(current_floor...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
       down_index = @elevator_status[:destinations].slice(0..current_floor).rindex { |destination| !destination.nil? }
       if up_index.nil? && down_index.nil?
         # do nothing
@@ -299,10 +324,6 @@ msg 'door wait'
     destination
   end
 
-  def msg(text)
-    Simulation::msg "Elevator #{@id}: #{text}" if Simulation::debug
-  end
-
   def no_destinations
     @elevator_status[:destinations].none? { |d| !d.nil? }
   end
@@ -318,7 +339,7 @@ msg 'door wait'
         next if going_up? && (passenger.destination < current_floor)
         next if going_down? && (passenger.destination > current_floor)
       end
-      break if car_full?(passenger.weight)
+      break if car_full?
       floor.leave_waitlist(passenger).on_elevator(Simulation::time)
       @elevator_status[:riders][:count]  += 1
       @elevator_status[:riders][:weight] += passenger.weight
@@ -361,5 +382,6 @@ msg 'door wait'
     # # else
     #
     @elevator_status[:destinations][request_floor] = request[:direction]
+    msg "Destinations: #{@elevator_status[:destinations].join(', ')}"
   end
 end
