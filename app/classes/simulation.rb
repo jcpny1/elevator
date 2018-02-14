@@ -7,7 +7,7 @@ class Simulation
 
   @@simulation_time = nil
 
-  def initialize(logic:'FCFS', modifiers: {}, floors: 6, elevators: 1, occupants: 20, debug:false)
+  def initialize(logic:'FCFS', modifiers: {'NOPICK': true}, floors: 6, elevators: 1, occupants: 20, debug:false)
     @logic         = logic
     @modifiers     = modifiers
     @num_floors    = floors
@@ -61,7 +61,8 @@ private
           going_up ||= occupant.destination > floor.id
           break if going_up && going_dn
         end
-        if going_dn && !floor.call_dn
+        # TODO What happened to event?
+        if going_dn #&& !floor.call_dn
           floor.press_call_dn
           calls << {time: Simulation::time, cmd: 'CALL', floor: floor.id, direction: 'dn'}
         end

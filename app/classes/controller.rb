@@ -4,8 +4,11 @@ class Controller
 
   CONTROLLER_LOOP_DELAY = 0.01  # seconds.
 
+  @@next_elevator = 0
+
   def initialize(request_q, elevators, num_floors, logic)
     @@next_elevator = 0
+    @id = 0
     @request_q = request_q
     @elevators = elevators
     @num_floors = num_floors
@@ -17,6 +20,7 @@ class Controller
     while keep_running
       while !@request_q.empty?
         request = @request_q.deq
+        msg request
         elevator = select_elevator(request)
         elevator[:car].controller_q << request
         # if request[:cmd] === 'END'
@@ -30,6 +34,10 @@ class Controller
   end
 
 private
+
+  def msg(text)
+    Simulation::msg "Controller #{@id}: #{text}" if Simulation::debug
+  end
 
   def select_elevator(request)
     elevator = nil
@@ -45,7 +53,7 @@ private
     else
       raise "Invalid logic: #{@logic}."
     end
-puts "ELEVATOR #{elevator[:id]} SELECTED"
+    msg "Elevator #{elevator[:id]} selected"
     elevator
   end
 
@@ -62,18 +70,17 @@ puts "ELEVATOR #{elevator[:id]} SELECTED"
     diffs = []
     # Measure distance to request floor from each elevator.
     @elevators.each do |e|
-      elevator_floor = e[:car].current_floor
-      if request_floor > elevator_floor
+      if request_floor > e[:car].current_floor
         if e[:car].is_going_down?
           diffs << @num_floors + 1  # don't consider this elevator.
         else  # elevator is going up or is stationery.
-          diffs << request_floor - elevator_floor
+          diffs << request_floor - e[:car].current_floor
         end
-      elsif request_floor < elevator_floor
+      elsif request_floor < e[:car].current_floor
         if e[:car].is_going_up?
           diffs << @num_floors + 1  # don't consider this elevator.
         else  # elevator is going down or is stationery.
-          diffs << elevator_floor - request_floor
+          diffs << e[:car].current_floor - request_floor
         end
       elsif e[:car].is_stationary?  # and is on call floor already.
         diffs << 0

@@ -3,7 +3,7 @@ class Floor
   attr_reader :call_dn, :call_up, :id, :occupants, :waitlist
 
   @@floor_semaphore = Mutex.new   # Floor objects are subject to multithreaded r/w access.
-
+                                  # Concurrency is improved by having one semaphore for each floor instead of one for all floors.
   def initialize(id)
     @id = id
     @call_dn = false  # the elevator lobby call button, down direction.

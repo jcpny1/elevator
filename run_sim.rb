@@ -14,7 +14,7 @@ require_relative 'app/classes/simulation'
 #   C-LOOK (Circular LOOK): Like C-SCAN, but do not travel to end of movement. Return to beginning when last request is serviced.
 
 # modifiers {}:
-#   nopick: Do not pickup passengers traveling in opposite direction.
+#   nopick: Do not pickup passengers traveling in opposite direction. This is the normal case. Up waiters shouldn't be boarding a down elevator and v.v.
 
 # floors: Number of floors.
 
@@ -30,5 +30,7 @@ require_relative 'app/classes/simulation'
 # puts "Run 2: logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false"
 # Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false).run
 # puts
-puts "Run 3: logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 2, occupants: 100, debug:true"
-Simulation.new(logic:'SSTF', modifiers: {'NOPICK': false}, floors: 10, elevators: 2, occupants: 100, debug:false).run
+# puts "Run 3: logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 2, occupants: 100, debug:true"
+# Simulation.new(logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 2, occupants: 100, debug:true).run
+puts "Run X: logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 1, occupants: 100, debug:true"
+Simulation.new(logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 1, occupants: 100, debug:true).run

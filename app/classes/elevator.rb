@@ -22,14 +22,23 @@ class Elevator
   def initialize(id, controller_q, floors, no_pick)
     @id = id
     @controller_q = controller_q   # to receive commands from the controller.
-    @destinations = []             # floors to visit ordered by visit order.
     @floors = floors               # on each floor, load from waitlist, discharge to occupant list.
-    @no_pick = no_pick              # when true, do not pick up riders going in the opposite direction.
+    @no_pick = no_pick             # when true, do not pick up riders going in the opposite direction.
 
-    # Statistics  (multithreaded r/o access. r/w in this thread only.)
+    # Elevator Status (multithreaded r/o access. r/w in this thread only.)
     @elevator_status = {}
     @elevator_status[:car]       = 'stopped'   # car motion.
-    @elevator_status[:direction] = '--'        # car direction.
+# Direction values:
+    #   'up' = car is heading up.
+    #   'dn' = car is heading down.
+    #   '--' = car is stationary.
+    @elevator_status[:direction] = '--'
+# Destinations values:
+#   'up' = call on floor on to go up.
+#   'dn' = call on floor to to down.
+#   '--' = no call, discharge stop.
+#   nil = no call, no stop.
+    @elevator_status[:destinations] = Array.new(@floors.length)  # floors for this elevator is requested to stop at.
     @elevator_status[:door]      = 'closed'    # door status.
     @elevator_status[:location]  = 1           # floor.
     @elevator_status[:riders]    = {count: 0, weight: 0, occupants: []}  # occupants
@@ -62,27 +71,34 @@ class Elevator
   def run
     drain_queue = false
     while 1
+
       # Check controller for incoming commands.
       while !@controller_q.empty?
         request = @controller_q.deq
         case request[:cmd]
         when 'CALL'
           process_floor_request(request)
-puts "ID #{@id} #{request}"
+          msg "#{request}"
+          msg "Destinations: #{@elevator_status[:destinations].join(', ')}"
         when 'END'
           drain_queue = true
         else
           raise "Invalid command: #{request[:cmd]}."
         end
       end
+
       # Execute next command.
       if Simulation::time >= @elevator_status[:time]
-        if !@destinations.empty?
-          @elevator_status[:time] = Simulation::time if @elevator_status[:time] === 0.0
-          car_move(@destinations.first <=> @elevator_status[:location])
-        else
+        if no_destinations
+# IS NEXT LINE NEEDED?
           @elevator_status[:direction] = '--'
           break if drain_queue
+        else
+# IS NEXT LINE NEEDED?
+          @elevator_status[:time] = Simulation::time if @elevator_status[:time] === 0.0
+          destination = find_next_destination(@elevator_status[:destinations])
+          msg "Next destination: #{destination}, Current location: #{@elevator_status[:location]}"
+          car_move(destination <=> @elevator_status[:location])
         end
       end
       sleep LOOP_DELAY
@@ -101,38 +117,50 @@ private
   def car_arrival
     execute_command { car_stop }
     execute_command { door_open }
-
-    floor = @floors[@elevator_status[:location]]
-    floor.cancel_call_dn  # Canceling calls here. If pasengers can't board, they'll have to call again.
-    floor.cancel_call_up
-
     # Discharge cycle.
     discharge_count = discharge_passengers
     msg "discharging #{discharge_count}" if discharge_count.positive?
+
+# if stopping here for a down call, pickup down passengers and proceed down.
+# if moving up to get a down call, we should not be picking up any passengers until we arrive at call floor.
+# if moving down to get an up call, we should not be picking up any passengers until we arrive at call floor.
+# Sooo there's elevator movement direction, and elevator call floor direction.
+
+#TAKE THIS OUT. WILL SET DIRECTION BASED ON CALL DIRECTION. YOU CANT CALL 6 UP or 1 DN.
+    if current_floor === @floors.length - 1  # If at top floor,
+      @elevator_status[:direction] = 'dn'
+    elsif current_floor === 1  # If at first floor
+      @elevator_status[:direction] = 'up'
+    end
 
     # Pickup cycle.
     pickup_count = pickup_passengers
     msg "picking up #{pickup_count}" if pickup_count.positive?
 
+    @elevator_status[:destinations][current_floor] = nil
+    is_going_down? ? @floors[current_floor].cancel_call_dn : @floors[current_floor].cancel_call_up  # Canceling calls here. If pasengers can't board, they'll have to call again.
+
     # If neither picking or dropping off, stay open DOOR_WAIT_TIME.
     if (discharge_count + pickup_count).zero?
-      msg 'waiting'
+msg 'ZERO passengers on or off'
+msg 'door wait'
       advance_next_command_time(DOOR_WAIT_TIME)
     end
   end
 
   # Move number of floors indicated. -# = down, +# = up, 0 = arrived.
-  def car_move(floor)
-    if floor.zero?
+  def car_move(floor_count)
+    if floor_count.zero?
       execute_command { car_arrival }
-      @destinations.shift
+#IS THIS NEEDED? IS THIS DUP SOMEWHERE ELSE?
+      @elevator_status[:direction] = '--' if no_destinations
     else
-      @elevator_status[:direction] = floor.negative? ? 'dn' : 'up'
-      @elevator_status[:location] += floor
-      @elevator_status[:distance] += floor.abs * DISTANCE_PER_FLOOR
+      @elevator_status[:direction] = floor_count.negative? ? 'dn' : 'up'
+      @elevator_status[:location] += floor_count
+      @elevator_status[:distance] += floor_count.abs * DISTANCE_PER_FLOOR
       execute_command { car_start }
-      advance_next_command_time(floor.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
-      msg "floor #{@elevator_status[:location]}"
+      advance_next_command_time(floor_count.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
+      msg "floor #{current_floor}"
     end
   end
 
@@ -167,7 +195,7 @@ private
   # Discharge riders to destination floor.
   def discharge_passengers
     discharge_count = 0
-    floor = @floors[@elevator_status[:location]]
+    floor = @floors[current_floor]
     passengers = @elevator_status[:riders][:occupants].find_all { |occupant| occupant.destination === floor.id }
     passengers.each do |passenger|
       floor.enter_floor(passenger)
@@ -207,20 +235,72 @@ private
     yield
   end
 
+  def find_next_destination(destinations)
+    destination = nil
+    if is_going_up?
+      # Return nearest stop at or above current location.
+      up_index = destinations.slice(current_floor..@elevator_status[:destinations].length-1).index { |destination| destination === true }
+      if up_index.nil?
+        @elevator_status[:direction] = 'dn'
+      else
+        destination = up_index + current_floor
+      end
+    end
+
+    if is_going_down?
+      # Return nearest stop at or below current location.
+      down_index = destinations.slice(0..current_floor).rindex { |destination| destination === true }
+      if down_index.nil?
+        @elevator_status[:direction] = '--'
+      else
+        destination = down_index
+      end
+    end
+
+    if is_stationary?
+      # Return nearest stop to current location and set appropriate direction.
+      up_index = @elevator_status[:destinations].slice(current_floor..@elevator_status[:destinations].length-1).index { |destination| !destination.nil? }
+      down_index = @elevator_status[:destinations].slice(0..current_floor).rindex { |destination| !destination.nil? }
+      if up_index.nil? && down_index.nil?
+        # do nothing
+      elsif !up_index.nil? && !down_index.nil?
+        # If upper floor closer than lower floor, go up.
+        if up_index < down_index
+          @elevator_status[:direction] = 'up'
+          destination = up_index + current_floor
+        else
+          @elevator_status[:direction] = 'dn'
+          destination = down_index
+        end
+      elsif !up_index.nil?
+        @elevator_status[:direction] = 'up'
+        destination = up_index + current_floor
+      else
+        @elevator_status[:direction] = 'dn'
+        destination = down_index
+      end
+    end
+    destination
+  end
+
   def msg(text)
     Simulation::msg "Elevator #{@id}: #{text}" if Simulation::debug
+  end
+
+  def no_destinations
+    @elevator_status[:destinations].none? { |d| !d.nil? }
   end
 
   # Pickup passengers from floor's wait list.
   def pickup_passengers
     pickup_count = 0
-    floor = @floors[@elevator_status[:location]]
+    floor = @floors[current_floor]
     passengers = floor.waitlist
     passengers.each do |passenger|
       next if !passenger.time_to_board
       if @no_pick
-        next if is_going_up? && (passenger.destination < @elevator_status[:location])
-        next if is_going_down? && (passenger.destination > @elevator_status[:location])
+        next if is_going_up? && (passenger.destination < current_floor)
+        next if is_going_down? && (passenger.destination > current_floor)
       end
       break if @elevator_status[:riders][:count] == PASSENGER_LIMIT
       break if @elevator_status[:riders][:weight] + passenger.weight > WEIGHT_LIMIT
@@ -228,14 +308,43 @@ private
       @elevator_status[:riders][:count]  += 1
       @elevator_status[:riders][:weight] += passenger.weight
       @elevator_status[:riders][:occupants] << passenger
-      @destinations << passenger.destination if !@destinations.include? passenger.destination
+      @elevator_status[:destinations][passenger.destination] = true
       advance_next_command_time(LOAD_TIME_PER_PASSENGER)
       pickup_count += 1
     end
     pickup_count
   end
 
+  # Handle floor request
   def process_floor_request(request)
-    @destinations << request[:floor].to_i
+
+    request_floor = request[:floor].to_i
+    #
+    # # If @destinations is empty, just push request floor on.
+    # if @destinations.empty?
+    #   @destinations << request_floor
+    #   return
+    # end
+    #
+    # elevator_floor = @elevator_status[:location]
+    #
+    # # If elevator is moving down and request floor is below current location, add floor to destinations.
+    # if is_going_down? && (request_floor < elevator_floor)
+    #   destination_floor = @destinations[0]
+    #   # If request floor is higher than destination floor, insert to make a new destination floor.
+    #   if request_floor > destination_floor
+    #     @destinations.unshift(request_floor)
+    #     return
+    #   end
+    #
+    #   # If request floor is lower than destination floor, insert after destination floor but berfore any lower floor (or end).
+    #   # eg, find index of array element starting at [1] that is less than dest floor. If found, insert before. Otherwise, append?
+    #
+    # end
+    #
+    # # else if request floor is above current location and elevator is moving up, insert floor into destination.
+    # # else
+    #
+    @elevator_status[:destinations][request_floor] = request[:direction]
   end
 end
