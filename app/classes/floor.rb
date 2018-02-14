@@ -1,20 +1,20 @@
 # A floor of a building.
 class Floor
-  attr_reader :call_dn, :call_up, :id, :occupants, :waitlist
+  attr_reader :call_down, :call_up, :id, :occupants, :waitlist
 
   @@floor_semaphore = Mutex.new   # Floor objects are subject to multithreaded r/w access.
                                   # Concurrency is improved by having one semaphore for each floor instead of one for all floors.
   def initialize(id)
     @id = id
-    @call_dn = false  # the elevator lobby call button, down direction.
+    @call_down = false  # the elevator lobby call button, down direction.
     @call_up = false  # the elevator lobby call button, up direction.
     @occupants = []   # persons on a floor (they are not waiting for an elevator).
     @waitlist  = []   # persons in a floor's elevator lobby (they are waiting for an elevator).
   end
 
-  def cancel_call_dn
+  def cancel_call_down
   @@floor_semaphore.synchronize {
-    @call_dn = false
+    @call_down = false
   }
   end
 
@@ -24,9 +24,9 @@ class Floor
   }
   end
 
-  def press_call_dn
+  def press_call_down
     @@floor_semaphore.synchronize {
-      @call_dn = true
+      @call_down = true
       msg "Call Down"
     }
   end

@@ -39,10 +39,10 @@ class Simulation
     queue_morning_occupants
     run_sym
     output_stats
-    clear_stats
-    queue_evening_occupants
-    run_sym
-    output_stats
+    # clear_stats
+    # queue_evening_occupants
+    # run_sym
+    # output_stats
     # cleanup
   end
 
@@ -53,17 +53,17 @@ private
     calls = []
     @floors.each do |floor|
       if !floor.waitlist.empty?
-        going_dn = false
+        going_down = false
         going_up = false
         floor.waitlist.each do |occupant|
           next if !occupant.time_to_board
-          going_dn ||= occupant.destination < floor.id
+          going_down ||= occupant.destination < floor.id
           going_up ||= occupant.destination > floor.id
-          break if going_up && going_dn
+          break if going_up && going_down
         end
         # TODO What happened to event?
-        if going_dn #&& !floor.call_dn
-          floor.press_call_dn
+        if going_down #&& !floor.call_down
+          floor.press_call_down
           calls << {time: Simulation::time, cmd: 'CALL', floor: floor.id, direction: 'dn'}
         end
         if going_up && !floor.call_up

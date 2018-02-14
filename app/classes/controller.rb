@@ -71,18 +71,18 @@ private
     # Measure distance to request floor from each elevator.
     @elevators.each do |e|
       if request_floor > e[:car].current_floor
-        if e[:car].is_going_down?
+        if e[:car].going_down?
           diffs << @num_floors + 1  # don't consider this elevator.
         else  # elevator is going up or is stationery.
           diffs << request_floor - e[:car].current_floor
         end
       elsif request_floor < e[:car].current_floor
-        if e[:car].is_going_up?
+        if e[:car].going_up?
           diffs << @num_floors + 1  # don't consider this elevator.
         else  # elevator is going down or is stationery.
           diffs << e[:car].current_floor - request_floor
         end
-      elsif e[:car].is_stationary?  # and is on call floor already.
+      elsif e[:car].stationary?  # and is on call floor already.
         diffs << 0
       else  # car is on floor but is moving away.
         diffs << @num_floors + 1  # don't consider this elevator.

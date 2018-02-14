@@ -47,19 +47,26 @@ class Elevator
     msg 'active'
   end
 
+  # For coding simplicity, we'll allow boarding until car is overweight.
+  # In real world, we would board. Then once overweight, offboard until under weight.
+  def car_full?
+    @elevator_status[:riders][:count] == PASSENGER_LIMIT ||
+    @elevator_status[:riders][:weight] >= WEIGHT_LIMIT
+  end
+
   def current_floor
     @elevator_status[:location]
   end
 
-  def is_going_down?
+  def going_down?
     @elevator_status[:direction] === 'dn'
   end
 
-  def is_going_up?
+  def going_up?
     @elevator_status[:direction] === 'up'
   end
 
-  def is_stationary?
+  def stationary?
     @elevator_status[:direction] === '--'
   end
 
@@ -137,8 +144,16 @@ private
     pickup_count = pickup_passengers
     msg "picking up #{pickup_count}" if pickup_count.positive?
 
+    destination_direction = @elevator_status[:destinations][current_floor]
+    if destination_direction === 'dn'
+      @floors[current_floor].cancel_call_down
+    elsif destination_direction === 'up'
+      @floors[current_floor].cancel_call_up
+    end
+
     @elevator_status[:destinations][current_floor] = nil
-    is_going_down? ? @floors[current_floor].cancel_call_dn : @floors[current_floor].cancel_call_up  # Canceling calls here. If pasengers can't board, they'll have to call again.
+
+    # going_down? ? @floors[current_floor].cancel_call_down : @floors[current_floor].cancel_call_up  # Canceling calls here. If pasengers can't board, they'll have to call again.
 
     # If neither picking or dropping off, stay open DOOR_WAIT_TIME.
     if (discharge_count + pickup_count).zero?
@@ -160,14 +175,14 @@ msg 'door wait'
       @elevator_status[:distance] += floor_count.abs * DISTANCE_PER_FLOOR
       execute_command { car_start }
       advance_next_command_time(floor_count.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
-      msg "floor #{current_floor}"
+      # msg "floor #{current_floor}"
     end
   end
 
   def car_start
     if @elevator_status[:car].eql? 'stopped'
       execute_command { door_close }
-      # msg "starting #{@elevator_status[:direction]}"
+      msg "starting #{@elevator_status[:direction]}"
       @elevator_status[:car] = 'moving'
       advance_next_command_time(CAR_START)
       execute_command {car_status}
@@ -179,13 +194,13 @@ msg 'door wait'
       # Place all occupants on first floor waitlist at random times.
       msg "#{@elevator_status[:car]} on #{@elevator_status[:location]}"
     else
-      # msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}"
+      msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}"
     end
   end
 
   def car_stop
     if @elevator_status[:car].eql? 'moving'
-      # msg "stopping on #{@elevator_status[:location]}"
+      msg "stopping on #{@elevator_status[:location]}"
       @elevator_status[:car] = 'stopped'
       advance_next_command_time(CAR_STOP)
       execute_command {car_status}
@@ -210,7 +225,7 @@ msg 'door wait'
 
   def door_close
     if !@elevator_status[:door].eql? 'closed'
-      # msg 'door closing'
+      msg 'door closing'
       @elevator_status[:door] = 'closed'
       advance_next_command_time(DOOR_CLOSE)
       execute_command {door_status}
@@ -219,7 +234,7 @@ msg 'door wait'
 
   def door_open
     if !@elevator_status[:door].eql? 'open'
-      # msg 'door opening'
+      msg 'door opening'
       @elevator_status[:door] = 'open'
       advance_next_command_time(DOOR_OPEN)
       execute_command {door_status}
@@ -227,7 +242,7 @@ msg 'door wait'
   end
 
   def door_status
-    # msg "door #{@elevator_status[:door]}"
+    msg "door #{@elevator_status[:door]}"
   end
 
   def execute_command
@@ -237,19 +252,20 @@ msg 'door wait'
 
   def find_next_destination(destinations)
     destination = nil
-    if is_going_up?
-      # Return nearest stop at or above current location.
-      up_index = destinations.slice(current_floor..@elevator_status[:destinations].length-1).index { |destination| destination === true }
+    floor_offset = car_full? ? 1 : 0
+    if going_up?
+      # Return nearest stop above current location.
+      up_index = destinations.slice(current_floor+floor_offset..@elevator_status[:destinations].length-1).index { |destination| !destination.nil? }
       if up_index.nil?
         @elevator_status[:direction] = 'dn'
       else
-        destination = up_index + current_floor
+        destination = up_index + current_floor + floor_offset
       end
     end
 
-    if is_going_down?
-      # Return nearest stop at or below current location.
-      down_index = destinations.slice(0..current_floor).rindex { |destination| destination === true }
+    if going_down?
+      # Return nearest stop below current location.
+      down_index = destinations.slice(0..current_floor-floor_offset).rindex { |destination| !destination.nil? }
       if down_index.nil?
         @elevator_status[:direction] = '--'
       else
@@ -257,7 +273,7 @@ msg 'door wait'
       end
     end
 
-    if is_stationary?
+    if stationary?
       # Return nearest stop to current location and set appropriate direction.
       up_index = @elevator_status[:destinations].slice(current_floor..@elevator_status[:destinations].length-1).index { |destination| !destination.nil? }
       down_index = @elevator_status[:destinations].slice(0..current_floor).rindex { |destination| !destination.nil? }
@@ -299,16 +315,15 @@ msg 'door wait'
     passengers.each do |passenger|
       next if !passenger.time_to_board
       if @no_pick
-        next if is_going_up? && (passenger.destination < current_floor)
-        next if is_going_down? && (passenger.destination > current_floor)
+        next if going_up? && (passenger.destination < current_floor)
+        next if going_down? && (passenger.destination > current_floor)
       end
-      break if @elevator_status[:riders][:count] == PASSENGER_LIMIT
-      break if @elevator_status[:riders][:weight] + passenger.weight > WEIGHT_LIMIT
+      break if car_full?(passenger.weight)
       floor.leave_waitlist(passenger).on_elevator(Simulation::time)
       @elevator_status[:riders][:count]  += 1
       @elevator_status[:riders][:weight] += passenger.weight
       @elevator_status[:riders][:occupants] << passenger
-      @elevator_status[:destinations][passenger.destination] = true
+      @elevator_status[:destinations][passenger.destination] = '--'
       advance_next_command_time(LOAD_TIME_PER_PASSENGER)
       pickup_count += 1
     end
@@ -329,7 +344,7 @@ msg 'door wait'
     # elevator_floor = @elevator_status[:location]
     #
     # # If elevator is moving down and request floor is below current location, add floor to destinations.
-    # if is_going_down? && (request_floor < elevator_floor)
+    # if going_down? && (request_floor < elevator_floor)
     #   destination_floor = @destinations[0]
     #   # If request floor is higher than destination floor, insert to make a new destination floor.
     #   if request_floor > destination_floor
