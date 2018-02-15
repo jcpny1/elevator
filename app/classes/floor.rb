@@ -2,6 +2,8 @@
 class Floor
   attr_reader :call_down, :call_up, :id, :occupants, :waitlist
 
+  LOGGER_MODULE = 'Floor'
+
   @@floor_semaphore = Mutex.new   # Floor objects are subject to multithreaded r/w access.
                                   # Concurrency is improved by having one semaphore for each floor instead of one for all floors.
   def initialize(id)
@@ -66,8 +68,7 @@ class Floor
 
 private
 
-  def msg(text)
-    Simulator::msg "Floor #{@id}: #{text}" if Simulator::debug
+  def msg(text_msg, debug_level = Logger::INFO)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, debug_level, text_msg)
   end
-
 end

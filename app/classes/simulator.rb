@@ -1,6 +1,7 @@
 # Elevator operation simulator.
 class Simulator
-  MODULE_NAME        = 'Simulator'
+  LOGGER_MODULE      = 'Simulator'
+  MODULE_ID          = 0
   SIM_LOOP_DELAY     = 0.01   # (seconds) - sleep delay in simulation loop.
   SIM_LOOP_TIME_INCR = 1.0    # (seconds) - amount of time to advance simulated time for each simulation loop.
   STATIC_RNG_SEED    = 101    # for random number generation.
@@ -8,6 +9,7 @@ class Simulator
   @@simulation_time = nil
 
   def initialize(logic:'FCFS', modifiers: {'NOPICK': true}, floors: 6, elevators: 1, occupants: 20, debug:false, debug_level: Logger::NONE)
+    @id            = MODULE_ID
     @logic         = logic
     @modifiers     = modifiers
     @num_floors    = floors
@@ -17,9 +19,10 @@ class Simulator
     @debug_level   = debug_level
     @@rng = Random.new(STATIC_RNG_SEED)
 
-    @@simulation_time = 0.0   # seconds
-    Logger::init('*', Logger::INFO)
-    Logger::msg(Simulator::time, MODULE_NAME, @debug_level, 'Simulator starting')
+    # @@simulation_time = 0.0   # seconds
+    @@simulation_time = 0.0
+    Logger::init('*', @debug_level)
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "Simulator #{@id} starting")
 
     @floors     = create_floors(@num_floors)
     @elevators  = create_elevators(@num_elevators, @floors, @modifiers)
@@ -29,10 +32,6 @@ class Simulator
 
   def self.debug
     @@debug
-  end
-
-  def self.msg(text)
-    puts "Time: %6.2f: #{text}" % Simulator::time
   end
 
   def self.rng
@@ -90,10 +89,9 @@ private
   # Create elevators.
   def create_elevators(elevator_count, floors, modifiers)
     elevators = []
-    no_pick = modifiers[:NOPICK]
     elevator_count.times do |i|
       elevator_queue  = Queue.new
-      elevator = Elevator.new(i, elevator_queue, floors, no_pick)
+      elevator = Elevator.new(i, elevator_queue, floors)
       elevator_thread = Thread.new { elevator.run }
       elevators << { id: i, thread: elevator_thread, car: elevator }
     end
@@ -132,24 +130,24 @@ private
       max_trip_time   = occupant.max_trip_time if occupant.max_trip_time > max_trip_time
       max_wait_time   = occupant.max_wait_time if occupant.max_wait_time > max_wait_time
     end
-    Simulator::msg 'Simulator: Simulator done.'
-    Simulator::msg "Simulator:   Logic        : #{@logic}"
-    Simulator::msg "Simulator:   Run Time     : %5.1f" % Simulator::time
-    Simulator::msg "Simulator:   Total Trips  : %5.1f" % total_trips
-    Simulator::msg "Simulator:   Avg Wait Time: %5.1f" % (total_wait_time/total_trips)
-    Simulator::msg "Simulator:   Avg Trip Time: %5.1f" % (total_trip_time/total_trips)
-    Simulator::msg "Simulator:   Max Wait Time: %5.1f" % max_wait_time
-    Simulator::msg "Simulator:   Max Trip Time: %5.1f" % max_trip_time
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, 'Simulator done.')
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Logic        : #{@logic}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Run Time     : %5.1f" % Simulator::time)
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Total Trips  : %5.1f" % total_trips)
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Avg Wait Time: %5.1f" % (total_wait_time/total_trips))
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Avg Trip Time: %5.1f" % (total_trip_time/total_trips))
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Max Wait Time: %5.1f" % max_wait_time)
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Max Trip Time: %5.1f" % max_trip_time)
 
     total_distance = 0
     @elevators.each do |elevator|
       distance = elevator[:car].elevator_status[:distance]
       total_distance += distance
     end
-    Simulator::msg "Simulator:   Total Elevator dx: %5.1f" % total_distance
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Elevator dx  : %5.1f" % total_distance)
     @elevators.each do |elevator|
       distance = elevator[:car].elevator_status[:distance]
-      Simulator::msg "Simulator:       Elevator #{elevator[:id]} dx: %5.1f" % distance
+      Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "    Elevator #{elevator[:id]} : %5.1f" % distance)
     end
   end
 

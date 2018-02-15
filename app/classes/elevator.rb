@@ -5,7 +5,8 @@ class Elevator
 
   DISTANCE_PER_FLOOR  = 12.0
   DISTANCE_PER_SECOND =  4.0
-  DISTANCE_UNITS = 'Feet'
+  DISTANCE_UNITS      = 'Feet'
+  LOGGER_MODULE       = 'Elevator'
 
   CAR_START = 1.0
   CAR_STOP = 1.0
@@ -19,11 +20,10 @@ class Elevator
   PASSENGER_LIMIT = 10
   WEIGHT_LIMIT = 2000
 
-  def initialize(id, controller_q, floors, no_pick)
+  def initialize(id, controller_q, floors)
     @id = id
     @controller_q = controller_q   # to receive commands from the controller.
     @floors = floors               # on each floor, load from waitlist, discharge to occupant list.
-    @no_pick = no_pick             # when true, do not pick up riders going in the opposite direction.
 
     # Elevator Status (multithreaded r/o access. r/w in this thread only.)
     @elevator_status = {}
@@ -252,10 +252,10 @@ msg 'door wait'
     yield
   end
 
-  def msg(text)
-    Simulator::msg "Elevator #{@id}: #{text}" if Simulator::debug
+# TODO remove this method when all converted to Logger
+  def msg(text_msg, debug_level = Logger::INFO)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, debug_level, text_msg)
   end
-
 
   # Are any riders getting off on specified floor?
   def discharge_on?(floor)
@@ -335,10 +335,8 @@ msg 'door wait'
     passengers = floor.waitlist
     passengers.each do |passenger|
       next if !passenger.time_to_board
-      if @no_pick
-        next if going_up? && (passenger.destination < current_floor)
-        next if going_down? && (passenger.destination > current_floor)
-      end
+      next if going_up? && (passenger.destination < current_floor)
+      next if going_down? && (passenger.destination > current_floor)
       break if car_full?
       floor.leave_waitlist(passenger).on_elevator(Simulator::time)
       @elevator_status[:riders][:count]  += 1

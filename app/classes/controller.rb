@@ -3,8 +3,9 @@
 class Controller
 
   CONTROLLER_LOOP_DELAY = 0.01  # seconds.
+  LOGGER_MODULE         = 'Controller'
 
-  @@next_elevator = 0
+  @@next_elevator = nil
 
   def initialize(request_q, elevators, num_floors, logic)
     @@next_elevator = 0
@@ -20,7 +21,7 @@ class Controller
     while keep_running
       while !@request_q.empty?
         request = @request_q.deq
-        msg request
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, request.to_s)
         elevator = select_elevator(request)
         elevator[:car].controller_q << request
         # if request[:cmd] === 'END'
@@ -34,10 +35,6 @@ class Controller
   end
 
 private
-
-  def msg(text)
-    Simulator::msg "Controller #{@id}: #{text}" if Simulator::debug
-  end
 
   def select_elevator(request)
     elevator = nil
@@ -53,7 +50,7 @@ private
     else
       raise "Invalid logic: #{@logic}."
     end
-    msg "Elevator #{elevator[:id]} selected"
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "Elevator #{elevator[:id]} selected")
     elevator
   end
 
