@@ -21,7 +21,7 @@ class Controller
     while keep_running
       while !@request_q.empty?
         request = @request_q.deq
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, request.to_s)
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request.to_s)
         elevator = select_elevator(request)
         elevator[:car].controller_q << request
         # if request[:cmd] === 'END'
@@ -50,7 +50,7 @@ private
     else
       raise "Invalid logic: #{@logic}."
     end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "Elevator #{elevator[:id]} selected")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Elevator #{elevator[:id]} selected")
     elevator
   end
 

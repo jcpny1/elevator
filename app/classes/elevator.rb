@@ -84,7 +84,7 @@ class Elevator
         request = @controller_q.deq
         case request[:cmd]
         when 'CALL'
-          msg "#{request}"
+          msg "#{request}", Logger::DEBUG
           process_floor_request(request)
         when 'END'
           drain_queue = true
@@ -103,7 +103,7 @@ class Elevator
 # IS NEXT LINE NEEDED?
           @elevator_status[:time] = Simulator::time if @elevator_status[:time] === 0.0
           destination = next_destination(@elevator_status[:destinations])
-          msg "Next destination: #{destination}, Current location: #{@elevator_status[:location]}"
+          msg "Next destination: #{destination}, Current location: #{@elevator_status[:location]}", Logger::DEBUG
           car_move(destination <=> @elevator_status[:location])
         end
       end
@@ -126,7 +126,7 @@ private
 
     # Discharge cycle.
     discharge_count = discharge_passengers
-    msg "discharging #{discharge_count}" if discharge_count.positive?
+    msg "discharging #{discharge_count} on #{current_floor}" if discharge_count.positive?
 
 # if stopping here for a down call, pickup down passengers and proceed down.
 # if moving up to get a down call, we should not be picking up any passengers until we arrive at call floor.
@@ -141,7 +141,7 @@ private
     end
     # Pickup cycle.
     pickup_count = pickup_passengers
-    msg "picking up #{pickup_count}" if pickup_count.positive?
+    msg "picking up #{pickup_count} on #{current_floor}" if pickup_count.positive?
 
     destination_direction = @elevator_status[:destinations][current_floor]
     if destination_direction != '--'
@@ -176,14 +176,13 @@ msg 'door wait'
       @elevator_status[:distance] += floor_count.abs * DISTANCE_PER_FLOOR
       execute_command { car_start }
       advance_next_command_time(floor_count.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
-      # msg "floor #{current_floor}"
     end
   end
 
   def car_start
     if @elevator_status[:car].eql? 'stopped'
       execute_command { door_close }
-      msg "starting #{@elevator_status[:direction]}"
+      msg "starting #{@elevator_status[:direction]}", Logger::DEBUG
       @elevator_status[:car] = 'moving'
       advance_next_command_time(CAR_START)
       execute_command {car_status}
@@ -192,16 +191,15 @@ msg 'door wait'
 
   def car_status
     if @elevator_status[:car].eql? 'stopped'
-      # Place all occupants on first floor waitlist at random times.
-      msg "#{@elevator_status[:car]} on #{@elevator_status[:location]}"
+      msg "#{@elevator_status[:car]} on #{@elevator_status[:location]}", Logger::DEBUG
     else
-      msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}"
+      msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}", Logger::DEBUG
     end
   end
 
   def car_stop
     if @elevator_status[:car].eql? 'moving'
-      msg "stopping on #{@elevator_status[:location]}"
+      msg "stopping on #{@elevator_status[:location]}", Logger::DEBUG
       @elevator_status[:car] = 'stopped'
       advance_next_command_time(CAR_STOP)
       execute_command {car_status}
@@ -227,7 +225,7 @@ msg 'door wait'
 
   def door_close
     if !@elevator_status[:door].eql? 'closed'
-      msg 'door closing'
+      msg 'door closing', Logger::DEBUG
       @elevator_status[:door] = 'closed'
       advance_next_command_time(DOOR_CLOSE)
       execute_command {door_status}
@@ -236,7 +234,7 @@ msg 'door wait'
 
   def door_open
     if !@elevator_status[:door].eql? 'open'
-      msg 'door opening'
+      msg 'door opening', Logger::DEBUG
       @elevator_status[:door] = 'open'
       advance_next_command_time(DOOR_OPEN)
       execute_command {door_status}
@@ -244,7 +242,7 @@ msg 'door wait'
   end
 
   def door_status
-    msg "door #{@elevator_status[:door]}"
+    msg "door #{@elevator_status[:door]}", Logger::DEBUG
   end
 
   def execute_command
@@ -380,6 +378,6 @@ msg 'door wait'
     # # else
     #
     @elevator_status[:destinations][request_floor] = request[:direction]
-    msg "Destinations: #{@elevator_status[:destinations].join(', ')}"
+    msg "Destinations: #{@elevator_status[:destinations].join(', ')}", Logger::DEBUG
   end
 end
