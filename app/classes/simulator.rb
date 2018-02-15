@@ -44,10 +44,10 @@ class Simulator
     output_stats
     clear_stats
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush begin')
-    # queue_evening_occupants
-    # run_sym
+    queue_evening_occupants
+    run_sym
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush end')
-    # output_stats
+    output_stats
     # cleanup
   end
 
