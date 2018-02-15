@@ -94,14 +94,14 @@ class Elevator
       end
 
       # Execute next command.
-      if Simulation::time >= @elevator_status[:time]
+      if Simulator::time >= @elevator_status[:time]
         if no_destinations
 # IS NEXT LINE NEEDED?
           @elevator_status[:direction] = '--'
           break if drain_queue
         else
 # IS NEXT LINE NEEDED?
-          @elevator_status[:time] = Simulation::time if @elevator_status[:time] === 0.0
+          @elevator_status[:time] = Simulator::time if @elevator_status[:time] === 0.0
           destination = next_destination(@elevator_status[:destinations])
           msg "Next destination: #{destination}, Current location: #{@elevator_status[:location]}"
           car_move(destination <=> @elevator_status[:location])
@@ -248,12 +248,12 @@ msg 'door wait'
   end
 
   def execute_command
-    sleep LOOP_DELAY until Simulation::time >= @elevator_status[:time]
+    sleep LOOP_DELAY until Simulator::time >= @elevator_status[:time]
     yield
   end
 
   def msg(text)
-    Simulation::msg "Elevator #{@id}: #{text}" if Simulation::debug
+    Simulator::msg "Elevator #{@id}: #{text}" if Simulator::debug
   end
 
 
@@ -340,7 +340,7 @@ msg 'door wait'
         next if going_down? && (passenger.destination > current_floor)
       end
       break if car_full?
-      floor.leave_waitlist(passenger).on_elevator(Simulation::time)
+      floor.leave_waitlist(passenger).on_elevator(Simulator::time)
       @elevator_status[:riders][:count]  += 1
       @elevator_status[:riders][:weight] += passenger.weight
       @elevator_status[:riders][:occupants] << passenger

@@ -62,6 +62,6 @@ class Occupant < Person
   end
 
   def time_to_board
-    @enq_time <= Simulation::time
+    @enq_time <= Simulator::time
   end
 end

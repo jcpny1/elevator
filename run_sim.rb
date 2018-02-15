@@ -2,8 +2,9 @@ require 'pry'
 require_relative 'app/classes/controller'
 require_relative 'app/classes/elevator'
 require_relative 'app/classes/floor'
+require_relative 'app/classes/logger'
 require_relative 'app/classes/occupant'
-require_relative 'app/classes/simulation'
+require_relative 'app/classes/simulator'
 
 # logic:
 #   FCFS   (First Come, First Serve): Requests are processed in the order received.
@@ -25,12 +26,12 @@ require_relative 'app/classes/simulation'
 # debug true|false: Execute debug logic, messages, etc., if any.
 
 # puts "Run 1: logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false"
-# Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false).run
+# Simulator.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false).run
 # puts
 # puts "Run 2: logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false"
-# Simulation.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false).run
+# Simulator.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false).run
 # puts
 # puts "Run 3: logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 2, occupants: 100, debug:true"
-# Simulation.new(logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 2, occupants: 100, debug:true).run
+# Simulator.new(logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 2, occupants: 100, debug:true).run
 puts "Run X: logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 1, occupants: 100, debug:true"
-Simulation.new(logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 1, occupants: 100, debug:true).run
+Simulator.new(logic:'SSTF', modifiers: {'NOPICK': true}, floors: 10, elevators: 1, occupants: 100, debug:true, debug_level:Logger::INFO).run

@@ -40,7 +40,7 @@ class Floor
 
   def enter_floor(occupant)
     insert_occupant(occupant)
-    occupant.on_floor(Simulation::time)
+    occupant.on_floor(Simulator::time)
   end
 
   def enter_waitlist(occupant)
@@ -67,7 +67,7 @@ class Floor
 private
 
   def msg(text)
-    Simulation::msg "Floor #{@id}: #{text}" if Simulation::debug
+    Simulator::msg "Floor #{@id}: #{text}" if Simulator::debug
   end
 
 end

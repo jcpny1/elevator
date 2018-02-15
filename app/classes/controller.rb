@@ -36,7 +36,7 @@ class Controller
 private
 
   def msg(text)
-    Simulation::msg "Controller #{@id}: #{text}" if Simulation::debug
+    Simulator::msg "Controller #{@id}: #{text}" if Simulator::debug
   end
 
   def select_elevator(request)

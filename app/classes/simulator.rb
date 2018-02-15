@@ -1,22 +1,26 @@
 # Elevator operation simulator.
-class Simulation
-
+class Simulator
+  MODULE_NAME        = 'Simulator'
   SIM_LOOP_DELAY     = 0.01   # (seconds) - sleep delay in simulation loop.
   SIM_LOOP_TIME_INCR = 1.0    # (seconds) - amount of time to advance simulated time for each simulation loop.
   STATIC_RNG_SEED    = 101    # for random number generation.
 
   @@simulation_time = nil
 
-  def initialize(logic:'FCFS', modifiers: {'NOPICK': true}, floors: 6, elevators: 1, occupants: 20, debug:false)
+  def initialize(logic:'FCFS', modifiers: {'NOPICK': true}, floors: 6, elevators: 1, occupants: 20, debug:false, debug_level: Logger::NONE)
     @logic         = logic
     @modifiers     = modifiers
     @num_floors    = floors
     @num_elevators = elevators
     @num_occupants = occupants
     @@debug        = debug
+    @debug_level   = debug_level
     @@rng = Random.new(STATIC_RNG_SEED)
 
     @@simulation_time = 0.0   # seconds
+    Logger::init('*', Logger::INFO)
+    Logger::msg(Simulator::time, MODULE_NAME, @debug_level, 'Simulator starting')
+
     @floors     = create_floors(@num_floors)
     @elevators  = create_elevators(@num_elevators, @floors, @modifiers)
     @controller = create_controller(@elevators, @num_floors, @logic)
@@ -28,7 +32,7 @@ class Simulation
   end
 
   def self.msg(text)
-    puts "Time: %6.2f: #{text}" % Simulation::time
+    puts "Time: %6.2f: #{text}" % Simulator::time
   end
 
   def self.rng
@@ -64,11 +68,11 @@ private
         # TODO What happened to event?
         if going_down #&& !floor.call_down
           floor.press_call_down
-          calls << {time: Simulation::time, cmd: 'CALL', floor: floor.id, direction: 'dn'}
+          calls << {time: Simulator::time, cmd: 'CALL', floor: floor.id, direction: 'dn'}
         end
         if going_up && !floor.call_up
           floor.press_call_up
-          calls << {time: Simulation::time, cmd: 'CALL', floor: floor.id, direction: 'up'}
+          calls << {time: Simulator::time, cmd: 'CALL', floor: floor.id, direction: 'up'}
         end
       end
     end
@@ -106,7 +110,7 @@ private
   # Create occupants.
   def create_occupants(occupant_count)
     occupants = []
-    occupant_count.times { |i| occupants << Occupant.new(i, Simulation::rng.rand(170..200)) }  # TODO eventually switch to normal distribution of weight. 170 +/- 29
+    occupant_count.times { |i| occupants << Occupant.new(i, Simulator::rng.rand(170..200)) }  # TODO eventually switch to normal distribution of weight. 170 +/- 29
     occupants
   end
 
@@ -128,31 +132,31 @@ private
       max_trip_time   = occupant.max_trip_time if occupant.max_trip_time > max_trip_time
       max_wait_time   = occupant.max_wait_time if occupant.max_wait_time > max_wait_time
     end
-    Simulation::msg 'Simulator: Simulation done.'
-    Simulation::msg "Simulator:   Logic        : #{@logic}"
-    Simulation::msg "Simulator:   Run Time     : %5.1f" % Simulation::time
-    Simulation::msg "Simulator:   Total Trips  : %5.1f" % total_trips
-    Simulation::msg "Simulator:   Avg Wait Time: %5.1f" % (total_wait_time/total_trips)
-    Simulation::msg "Simulator:   Avg Trip Time: %5.1f" % (total_trip_time/total_trips)
-    Simulation::msg "Simulator:   Max Wait Time: %5.1f" % max_wait_time
-    Simulation::msg "Simulator:   Max Trip Time: %5.1f" % max_trip_time
+    Simulator::msg 'Simulator: Simulator done.'
+    Simulator::msg "Simulator:   Logic        : #{@logic}"
+    Simulator::msg "Simulator:   Run Time     : %5.1f" % Simulator::time
+    Simulator::msg "Simulator:   Total Trips  : %5.1f" % total_trips
+    Simulator::msg "Simulator:   Avg Wait Time: %5.1f" % (total_wait_time/total_trips)
+    Simulator::msg "Simulator:   Avg Trip Time: %5.1f" % (total_trip_time/total_trips)
+    Simulator::msg "Simulator:   Max Wait Time: %5.1f" % max_wait_time
+    Simulator::msg "Simulator:   Max Trip Time: %5.1f" % max_trip_time
 
     total_distance = 0
     @elevators.each do |elevator|
       distance = elevator[:car].elevator_status[:distance]
       total_distance += distance
     end
-    Simulation::msg "Simulator:   Total Elevator dx: %5.1f" % total_distance
+    Simulator::msg "Simulator:   Total Elevator dx: %5.1f" % total_distance
     @elevators.each do |elevator|
       distance = elevator[:car].elevator_status[:distance]
-      Simulation::msg "Simulator:       Elevator #{elevator[:id]} dx: %5.1f" % distance
+      Simulator::msg "Simulator:       Elevator #{elevator[:id]} dx: %5.1f" % distance
     end
   end
 
   # Place all occupants on their floor's waitlist at random times with destination = first floor.
   def queue_evening_occupants
     @occupants.each do |occupant|
-      arrival_time = @@rng.rand(Simulation::time..Simulation::time+600)  # TODO do a normal distribution of arrival time around 5pm +/- 15
+      arrival_time = @@rng.rand(Simulator::time..Simulator::time+600)  # TODO do a normal distribution of arrival time around 5pm +/- 15
       current_floor = occupant.destination
       occupant.enq(1, arrival_time)
       @floors[current_floor].enter_waitlist(occupant)
@@ -198,7 +202,7 @@ private
 
 # Shutdown elevators and controller.
 def cleanup
-  @controller[:queue] << {time: Simulation::time, cmd: 'END'}
+  @controller[:queue] << {time: Simulator::time, cmd: 'END'}
 
   # Keep clock running while waiting for elevators threads to complete.
   while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
