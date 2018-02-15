@@ -7,9 +7,8 @@ require_relative 'app/classes/occupant'
 require_relative 'app/classes/simulator'
 
 #
-# Use this file to configure and begin an elevator simulation run.
+# Use this file to configure and start simulation runs.
 #
-
 # logic:
 #   FCFS   (First Come, First Serve): Requests are processed in the order received.
 #   SSTF   (Shortest Seek Time First): Shortest travel distance in any direction from current location.
@@ -17,24 +16,20 @@ require_relative 'app/classes/simulator'
 #   L-SCAN (Look SCAN): Like SCAN, but reverse direction when last request in current direction is serviced.
 #   C-SCAN (Circular SCAN): Like SCAN, but ine direction only. At end of movement, return to beginning and SCAN again.
 #   C-LOOK (Circular LOOK): Like C-SCAN, but do not travel to end of movement. Return to beginning when last request is serviced.
-
 # modifiers {}:
-
 # floors: Number of floors.
-
 # elevators: Number of elevators.
-
 # occupants: Number of building occupants.
-
 # debug_level: Console logger debug level: DEBUG, WARN, etc.
 
 sim_runs = []
 sim_runs << {logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
-sim_runs << {logic:'FCFS', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
-sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
-sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
+# sim_runs << {logic:'FCFS', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
+# sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
+# sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
 
 sim_runs.each_with_index do |r, i|
-  puts "Run #{i}: logic: #{r[:logic]}, modifiers: #{r[:modifiers]}, floors: #{r[:floors]} elevators: #{r[:elevators]}, occupants: #{r[:occupants]}, debug_level: #{r[:debug_level]}"
+  puts "> > > Begin Run #{i}: #{r}"
   Simulator.new(r[:logic], r[:modifiers], r[:floors], r[:elevators], r[:occupants], r[:debug_level]).run
+  puts ">  > > End Run #{i}: #{r}"
 end
