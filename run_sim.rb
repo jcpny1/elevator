@@ -37,5 +37,14 @@ require_relative 'app/classes/simulator'
 # puts
 # puts "Run 3: logic:'SSTF', modifiers: {}, floors: 10, elevators: 2, occupants: 100, debug:true"
 # Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 2, occupants: 100, debug:true).run
-puts "Run X: logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug:true"
-Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug:true, debug_level:Logger::DEBUG).run
+# puts "Run X: logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug_level:Logger::DEBUG"
+# Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug_level:Logger::DEBUG).run
+
+
+sim_runs = []
+sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug_level:Logger::DEBUG}
+
+sim_runs.each_with_index do |r, i|
+  puts "Run #{i}: logic: #{r[:logic]}, modifiers: #{r[:modifiers]}, floors: #{r[:floors]} elevators: #{r[:elevators]}, occupants: #{r[:occupants]}, debug_level: #{r[:debug_level]}"
+  Simulator.new(logic: r[:logic], modifiers: r[:modifiers], floors: r[:floors], elevators: r[:elevators], occupants: r[:occupants], debug_level: r[:debug_level]).run
+end

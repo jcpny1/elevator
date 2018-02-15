@@ -12,7 +12,7 @@ class Simulator
   @@rng       = nil   # Random number generator.
   @@sim_time  = nil   # Simulated time (in seconds).
 
-  def initialize(logic:'FCFS', modifiers: {'NOPICK': true}, floors: 6, elevators: 1, occupants: 20, debug:false, debug_level: Logger::NONE)
+  def initialize(logic:'FCFS', modifiers: {}, floors: 6, elevators: 1, occupants: 20, debug:false, debug_level: Logger::NONE)
     @id            = MODULE_ID
     @logic         = logic
     @modifiers     = modifiers
