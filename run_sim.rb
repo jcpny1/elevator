@@ -6,6 +6,10 @@ require_relative 'app/classes/logger'
 require_relative 'app/classes/occupant'
 require_relative 'app/classes/simulator'
 
+#
+# Use this file to configure and begin an elevator simulation run.
+#
+
 # logic:
 #   FCFS   (First Come, First Serve): Requests are processed in the order received.
 #   SSTF   (Shortest Seek Time First): Shortest travel distance in any direction from current location.
@@ -34,4 +38,4 @@ require_relative 'app/classes/simulator'
 # puts "Run 3: logic:'SSTF', modifiers: {}, floors: 10, elevators: 2, occupants: 100, debug:true"
 # Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 2, occupants: 100, debug:true).run
 puts "Run X: logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug:true"
-Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug:true, debug_level:Logger::INFO).run
+Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug:true, debug_level:Logger::DEBUG).run

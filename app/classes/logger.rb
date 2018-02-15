@@ -7,6 +7,7 @@ module Logger
   #   'Simulator'
   #   '*'
 
+  # Message severity levels:
   DEBUG_3 = 0  # extreme detail degbugging messages
   DEBUG_2 = 1  # medium detail degbugging messages
   DEBUG, DEBUG_1 = 2  # least detail degbugging messages

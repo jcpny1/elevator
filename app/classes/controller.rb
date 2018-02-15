@@ -1,19 +1,19 @@
-# A Controller receives requests for elevator services from floor call buttons then assigns elevators to service those requests.
-# A Controller may also command an elevator to go to a particluar floor without receiving a call button request.
+# The Controller receives service requests from users and send commands to elevators.
+# Requests for elevator services are received from floor call buttons. The Controller assigns an  elevator to service those requests.
+# A Controller may also implement performance improvement functions such as commanding to stage at a particular floor in anticipation of a request.
 class Controller
-
-  CONTROLLER_LOOP_DELAY = 0.01  # seconds.
   LOGGER_MODULE         = 'Controller'
+  LOOP_DELAY = 0.01  # in seconds.
 
   @@next_elevator = nil
 
   def initialize(request_q, elevators, num_floors, logic)
-    @@next_elevator = 0
-    @id = 0
-    @request_q = request_q
-    @elevators = elevators
+    @request_q  = request_q
+    @elevators  = elevators
     @num_floors = num_floors
     @logic = logic
+    @id = 0
+    @@next_elevator = 0
   end
 
   def run
@@ -30,29 +30,11 @@ class Controller
         # else
         # end
       end
-      sleep CONTROLLER_LOOP_DELAY
+      sleep LOOP_DELAY
     end
   end
 
 private
-
-  def select_elevator(request)
-    elevator = nil
-    case @logic
-    when 'FCFS'    # First Come, First Serve
-      elevator = logic_fcfs(request)
-    when 'SSTF'    # Shortest Seek Time First
-      elevator = logic_sstf(request)
-    when 'SCAN'    # Elevator Algorithm
-    when 'L-SCAN'  # Look SCAN
-    when 'C-SCAN'  # Circular SCAN
-    when 'C-LOOK'  # Circular LOOK
-    else
-      raise "Invalid logic: #{@logic}."
-    end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Elevator #{elevator[:id]} selected")
-    elevator
-  end
 
   def logic_fcfs(request)
     elevator = @elevators[@@next_elevator]
@@ -99,6 +81,24 @@ private
     else
       elevator = @elevators[elevator_num]
     end
+    elevator
+  end
+
+  def select_elevator(request)
+    elevator = nil
+    case @logic
+    when 'FCFS'    # First Come, First Serve
+      elevator = logic_fcfs(request)
+    when 'SSTF'    # Shortest Seek Time First
+      elevator = logic_sstf(request)
+    when 'SCAN'    # Elevator Algorithm
+    when 'L-SCAN'  # Look SCAN
+    when 'C-SCAN'  # Circular SCAN
+    when 'C-LOOK'  # Circular LOOK
+    else
+      raise "Invalid logic: #{@logic}."
+    end
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Elevator #{elevator[:id]} selected")
     elevator
   end
 end

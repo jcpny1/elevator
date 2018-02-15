@@ -1,11 +1,13 @@
 # A floor of a building.
+# Each floor contain an up and a down elevator call button and a wait queue for arriving passengers.
 class Floor
-  attr_reader :call_down, :call_up, :id, :occupants, :waitlist
-
   LOGGER_MODULE = 'Floor'
+  FLOOR_HEIGHT  = 12.0
 
   @@floor_semaphore = Mutex.new   # Floor objects are subject to multithreaded r/w access.
                                   # Concurrency is improved by having one semaphore for each floor instead of one for all floors.
+  attr_reader :call_down, :call_up, :id, :occupants, :waitlist
+
   def initialize(id)
     @id = id
     @call_down = false  # the elevator lobby call button, down direction.
@@ -26,6 +28,10 @@ class Floor
   }
   end
 
+  def self.height
+    FLOOR_HEIGHT
+  end
+
   def press_call_down
     @@floor_semaphore.synchronize {
       @call_down = true
@@ -40,9 +46,8 @@ class Floor
   }
   end
 
-  def enter_floor(occupant)
+  def accept_occupant(occupant)
     insert_occupant(occupant)
-    occupant.on_floor(Simulator::time)
   end
 
   def enter_waitlist(occupant)

@@ -1,54 +1,37 @@
 # An Elevator moves Persons between floors of a building.
+# An Elevator receives commands from the Controller.
+# An Elevator has floor selection buttons that riders can press to select a destination floor.
 class Elevator
+  LOGGER_MODULE  = 'Elevator'
+
+  # Elevator car parameters:
+  CAR_SPEED       =  4.0  # in feet per second.
+  PASSENGER_LIMIT = 10    # in bodies.
+  WEIGHT_LIMIT    = 2000  # in pounds.
+
+  # Elevator operation times (in seconds):
+  CAR_START      = 1.0
+  CAR_STOP       = 1.0
+  DOOR_CLOSE     = 2.0
+  DOOR_OPEN      = 2.0
+  DISCHARGE_TIME = 2.0
+  DOOR_WAIT_TIME = 3.0
+  LOAD_TIME      = 2.0
+  LOOP_DELAY     = 0.01  # seconds.
 
   attr_reader :controller_q, :elevator_status
 
-  DISTANCE_PER_FLOOR  = 12.0
-  DISTANCE_PER_SECOND =  4.0
-  DISTANCE_UNITS      = 'Feet'
-  LOGGER_MODULE       = 'Elevator'
-
-  CAR_START = 1.0
-  CAR_STOP = 1.0
-  DOOR_CLOSE = 2.0
-  DOOR_OPEN = 2.0
-  DISCHARGE_TIME_PER_PASSENGER = 2.0
-  DOOR_WAIT_TIME = 3.0
-  LOAD_TIME_PER_PASSENGER = 2.0
-  LOOP_DELAY = 0.01  # seconds.
-
-  PASSENGER_LIMIT = 10
-  WEIGHT_LIMIT = 2000
-
   def initialize(id, controller_q, floors)
     @id = id
-    @controller_q = controller_q   # to receive commands from the controller.
-    @floors = floors               # on each floor, load from waitlist, discharge to occupant list.
-
-    # Elevator Status (multithreaded r/o access. r/w in this thread only.)
-    @elevator_status = {}
-    @elevator_status[:car]       = 'stopped'   # car motion.
-# Direction values:
-    #   'up' = car is heading up.
-    #   'dn' = car is heading down.
-    #   '--' = car is stationary.
-    @elevator_status[:direction] = '--'
-# Destinations values:
-#   'up' = call on floor on to go up.
-#   'dn' = call on floor to to down.
-#   '--' = no call, discharge stop.
-#   nil = no call, no stop.
-    @elevator_status[:destinations] = Array.new(@floors.length)  # floors for this elevator is requested to stop at.
-    @elevator_status[:door]      = 'closed'    # door status.
-    @elevator_status[:location]  = 1           # floor.
-    @elevator_status[:riders]    = {count: 0, weight: 0, occupants: []}  # occupants
-    @elevator_status[:time]      = 0.0         # this status effective time.
+    @controller_q = controller_q            # to receive commands from the controller.
+    @floors = floors                        # on each floor, load from waitlist, discharge to occupant list.
+    @elevator_status = new_elevator_status  # keeps track of what the elevator is doing and has done.
     init_stats
     msg 'active'
   end
 
   # For coding simplicity, we'll allow boarding until car is overweight.
-  # In real world, we would board. Then once overweight, offboard until under weight.
+  # In the real world, we would board. Then once overweight, offboard until under weight.
   def car_full?
     @elevator_status[:riders][:count] == PASSENGER_LIMIT ||
     @elevator_status[:riders][:weight] >= WEIGHT_LIMIT
@@ -173,9 +156,9 @@ msg 'door wait'
     else
       @elevator_status[:direction] = floor_count.negative? ? 'dn' : 'up'
       @elevator_status[:location] += floor_count
-      @elevator_status[:distance] += floor_count.abs * DISTANCE_PER_FLOOR
+      @elevator_status[:distance] += floor_count.abs * Floor::height
       execute_command { car_start }
-      advance_next_command_time(floor_count.abs * (DISTANCE_PER_FLOOR/DISTANCE_PER_SECOND))
+      advance_next_command_time(floor_count.abs * (Floor::height/CAR_SPEED))
     end
   end
 
@@ -212,11 +195,11 @@ msg 'door wait'
     floor = @floors[current_floor]
     passengers = @elevator_status[:riders][:occupants].find_all { |occupant| occupant.destination === floor.id }
     passengers.each do |passenger|
-      floor.enter_floor(passenger)
+      Simulator::unload_passenger(passenger, floor)
       @elevator_status[:riders][:count]  -= 1
       @elevator_status[:riders][:weight] -= passenger.weight
       @elevator_status[:riders][:occupants].delete(passenger)
-      advance_next_command_time(DISCHARGE_TIME_PER_PASSENGER)
+      advance_next_command_time(DISCHARGE_TIME)
       discharge_count += 1
     end
     @elevator_status[:direction] = '--' if @elevator_status[:riders][:count].zero?
@@ -260,6 +243,27 @@ msg 'door wait'
     @elevator_status[:riders][:occupants].any? { |occupant| occupant.destination === floor }
   end
 
+  # Create an elevator status object. (Will have multithreaded read access.)
+  def new_elevator_status
+    status = {}
+    status[:car] = 'stopped'  # car motion.
+  # Direction values:
+    #   'up' = car is heading up.
+    #   'dn' = car is heading down.
+    #   '--' = car is stationary.
+    status[:direction] = '--'
+  # Destinations values:
+  #   'up' = call on floor on to go up.
+  #   'dn' = call on floor to to down.
+  #   '--' = no call, discharge stop.
+  #   nil = no call, no stop.
+    status[:destinations] = Array.new(@floors.length)  # floors for this elevator is requested to stop at.
+    status[:door]      = 'closed'    # door status.
+    status[:location]  = 1           # floor.
+    status[:riders]    = {count: 0, weight: 0, occupants: []}  # occupants
+    status[:time]      = 0.0         # this status effective time.
+    status
+  end
 
   def next_destination(destinations)
     destination = nil
@@ -341,7 +345,7 @@ msg 'door wait'
       @elevator_status[:riders][:weight] += passenger.weight
       @elevator_status[:riders][:occupants] << passenger
       @elevator_status[:destinations][passenger.destination] = '--'
-      advance_next_command_time(LOAD_TIME_PER_PASSENGER)
+      advance_next_command_time(LOAD_TIME)
       pickup_count += 1
     end
     pickup_count

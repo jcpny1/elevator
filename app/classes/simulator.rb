@@ -1,12 +1,16 @@
-# Elevator operation simulator.
+# The Elevator operation simulator.
+# The Simulator mimics user interaction with the elevators.
 class Simulator
-  LOGGER_MODULE      = 'Simulator'
-  MODULE_ID          = 0
-  SIM_LOOP_DELAY     = 0.01   # (seconds) - sleep delay in simulation loop.
-  SIM_LOOP_TIME_INCR = 1.0    # (seconds) - amount of time to advance simulated time for each simulation loop.
-  STATIC_RNG_SEED    = 101    # for random number generation.
+  LOGGER_MODULE      = 'Simulator'  # for console logger.
 
-  @@simulation_time = nil
+  MODULE_ID       = 0    # for console logger.
+  LOOP_DELAY      = 0.01 # (seconds) - sleep delay in simulation loop.
+  LOOP_TIME_INCR  = 1.0  # (seconds) - amount of time to advance simulated time for each simulation loop.
+  RNG_SEED        = 101  # for random number generation. Using a static seed value for repeatable simulation runs.
+
+  @@debug     = nil   # Debug enabled?
+  @@rng       = nil   # Random number generator.
+  @@sim_time  = nil   # Simulated time (in seconds).
 
   def initialize(logic:'FCFS', modifiers: {'NOPICK': true}, floors: 6, elevators: 1, occupants: 20, debug:false, debug_level: Logger::NONE)
     @id            = MODULE_ID
@@ -17,10 +21,9 @@ class Simulator
     @num_occupants = occupants
     @@debug        = debug
     @debug_level   = debug_level
-    @@rng = Random.new(STATIC_RNG_SEED)
+    @@rng = Random.new(RNG_SEED)
 
-    # @@simulation_time = 0.0   # seconds
-    @@simulation_time = 0.0
+    @@sim_time = 0.0
     Logger::init('*', @debug_level)
     Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "Simulator #{@id} starting")
 
@@ -47,6 +50,11 @@ class Simulator
     # run_sym
     # output_stats
     # cleanup
+  end
+
+  def self.unload_passenger(passenger, floor)
+    floor.accept_occupant(passenger)
+    passenger.on_floor(Simulator::time)
   end
 
 private
@@ -182,13 +190,13 @@ private
       no_waiters = @floors.all? { |floor| floor.waitlist.length.zero? }
       no_riders = @elevators.all? { |elevator| elevator[:car].elevator_status[:riders][:occupants].length.zero?}
       break if no_waiters && no_riders
-      sleep SIM_LOOP_DELAY
-      @@simulation_time += SIM_LOOP_TIME_INCR
+      sleep LOOP_DELAY
+      @@sim_time += LOOP_TIME_INCR
     end
   end
 
   def self.time
-    @@simulation_time
+    @@sim_time
   end
 
 
@@ -205,7 +213,7 @@ def cleanup
   # Keep clock running while waiting for elevators threads to complete.
   while @elevators.reduce(false) { |status, elevator| status || elevator[:thread].status }
     sleep LOOP_DELAY
-    @@simulation_time += LOOP_TIME
+    @@sim_time += LOOP_TIME
   end
 
   # Clean up controller.
