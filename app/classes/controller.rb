@@ -2,17 +2,17 @@
 # Requests for elevator services are received from floor call buttons. The Controller assigns an  elevator to service those requests.
 # A Controller may also implement performance improvement functions such as commanding to stage at a particular floor in anticipation of a request.
 class Controller
-  LOGGER_MODULE         = 'Controller'
-  LOOP_DELAY = 0.01  # in seconds.
+  LOGGER_MODULE = 'Controller'
+  LOOP_DELAY    = 0.01  # in seconds.
 
   @@next_elevator = nil
 
   def initialize(request_q, elevators, num_floors, logic)
+    @id = 0
     @request_q  = request_q
     @elevators  = elevators
     @num_floors = num_floors
     @logic = logic
-    @id = 0
     @@next_elevator = 0
   end
 

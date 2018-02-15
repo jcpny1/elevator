@@ -19,7 +19,6 @@ require_relative 'app/classes/simulator'
 #   C-LOOK (Circular LOOK): Like C-SCAN, but do not travel to end of movement. Return to beginning when last request is serviced.
 
 # modifiers {}:
-#
 
 # floors: Number of floors.
 
@@ -27,24 +26,15 @@ require_relative 'app/classes/simulator'
 
 # occupants: Number of building occupants.
 
-# debug true|false: Execute debug logic, messages, etc., if any.
-
-# puts "Run 1: logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false"
-# Simulator.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 1, occupants: 40, debug:false).run
-# puts
-# puts "Run 2: logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false"
-# Simulator.new(logic:'FCFS', modifiers: {}, floors: 10, elevators: 2, occupants: 40, debug:false).run
-# puts
-# puts "Run 3: logic:'SSTF', modifiers: {}, floors: 10, elevators: 2, occupants: 100, debug:true"
-# Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 2, occupants: 100, debug:true).run
-# puts "Run X: logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug_level:Logger::DEBUG"
-# Simulator.new(logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug_level:Logger::DEBUG).run
-
+# debug_level: Console logger debug level: DEBUG, WARN, etc.
 
 sim_runs = []
-sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators: 1, occupants: 100, debug_level:Logger::DEBUG}
+sim_runs << {logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
+sim_runs << {logic:'FCFS', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
+sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
+sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
 
 sim_runs.each_with_index do |r, i|
   puts "Run #{i}: logic: #{r[:logic]}, modifiers: #{r[:modifiers]}, floors: #{r[:floors]} elevators: #{r[:elevators]}, occupants: #{r[:occupants]}, debug_level: #{r[:debug_level]}"
-  Simulator.new(logic: r[:logic], modifiers: r[:modifiers], floors: r[:floors], elevators: r[:elevators], occupants: r[:occupants], debug_level: r[:debug_level]).run
+  Simulator.new(r[:logic], r[:modifiers], r[:floors], r[:elevators], r[:occupants], r[:debug_level]).run
 end
