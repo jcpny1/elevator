@@ -23,13 +23,14 @@ require_relative 'app/classes/simulator'
 # debug_level: Console logger debug level: DEBUG, WARN, etc.
 
 sim_runs = []
-sim_runs << {logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
-# sim_runs << {logic:'FCFS', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
-# sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
-# sim_runs << {logic:'SSTF', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
+# sim_runs << {name: 'simple', logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
+# sim_runs << {name: 'simple dual', logic:'FCFS', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
+# sim_runs << {name: 'smarts 1', logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
+# sim_runs << {name: 'smarts 2', logic:'SSTF', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
+sim_runs << {name: 'testing 1', logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   100, debug_level: Logger::DEBUG}
 
 sim_runs.each_with_index do |r, i|
   puts "> > > Begin Run #{i}: #{r}"
-  Simulator.new(r[:logic], r[:modifiers], r[:floors], r[:elevators], r[:occupants], r[:debug_level]).run
+  Simulator.new(r[:name], r[:logic], r[:modifiers], r[:floors], r[:elevators], r[:occupants], r[:debug_level]).run
   puts ">  > > End Run #{i}: #{r}"
 end

@@ -11,19 +11,20 @@ class Simulator
   @@rng       = nil   # Random number generator.
   @@sim_time  = nil   # Simulated time (in seconds).
 
-  def initialize(logic, modifiers, floors, elevators, occupants, debug_level)
-    @id            = MODULE_ID
-    @logic         = logic
-    @modifiers     = modifiers
-    @num_floors    = floors
-    @num_elevators = elevators
-    @num_occupants = occupants
-    @debug_level   = debug_level
+  def initialize(name, logic, modifiers, floors, elevators, occupants, debug_level)
+    @id             = MODULE_ID
+    @name           = name
+    @logic          = logic
+    @modifiers      = modifiers
+    @num_floors     = floors
+    @num_elevators  = elevators
+    @num_occupants  = occupants
+    @debug_level    = debug_level
     @@rng = Random.new(RNG_SEED)
 
     @@sim_time = 0.0
     Logger::init('*', @debug_level)
-    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "Simulator #{@id} starting")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'starting')
 
     @floors     = create_floors(@num_floors)
     @elevators  = create_elevators(@num_elevators, @floors, @modifiers)
@@ -36,12 +37,16 @@ class Simulator
   end
 
   def run
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Morning Rush begin')
     queue_morning_occupants
     run_sym
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Morning Rush end')
     output_stats
-    # clear_stats
+    clear_stats
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush begin')
     # queue_evening_occupants
     # run_sym
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush end')
     # output_stats
     # cleanup
   end
@@ -95,7 +100,7 @@ private
       elevator_queue  = Queue.new
       elevator = Elevator.new(i, elevator_queue, floors)
       elevator_thread = Thread.new { elevator.run }
-      elevators << { id: i, thread: elevator_thread, car: elevator }
+      elevators << {id: i, thread: elevator_thread, car: elevator}
     end
     elevators
   end
@@ -132,7 +137,7 @@ private
       max_trip_time   = occupant.max_trip_time if occupant.max_trip_time > max_trip_time
       max_wait_time   = occupant.max_wait_time if occupant.max_wait_time > max_wait_time
     end
-    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, 'Simulator done.')
+    Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Name         : #{@name}")
     Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Logic        : #{@logic}")
     Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Run Time     : %5.1f" % Simulator::time)
     Logger::msg(Simulator::time, LOGGER_MODULE, MODULE_ID, Logger::INFO, "  Total Trips  : %5.1f" % total_trips)
