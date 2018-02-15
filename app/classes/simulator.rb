@@ -8,7 +8,6 @@ class Simulator
   LOOP_TIME_INCR  = 1.0  # (seconds) - amount of time to advance simulated time for each simulation loop.
   RNG_SEED        = 101  # for random number generation. Using a static seed value for repeatable simulation runs.
 
-  @@debug     = nil   # Debug enabled?
   @@rng       = nil   # Random number generator.
   @@sim_time  = nil   # Simulated time (in seconds).
 
@@ -19,7 +18,6 @@ class Simulator
     @num_floors    = floors
     @num_elevators = elevators
     @num_occupants = occupants
-    @@debug        = debug
     @debug_level   = debug_level
     @@rng = Random.new(RNG_SEED)
 
@@ -31,10 +29,6 @@ class Simulator
     @elevators  = create_elevators(@num_elevators, @floors, @modifiers)
     @controller = create_controller(@elevators, @num_floors, @logic)
     @occupants  = create_occupants(@num_occupants)
-  end
-
-  def self.debug
-    @@debug
   end
 
   def self.rng
