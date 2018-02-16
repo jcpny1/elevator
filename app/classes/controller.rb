@@ -14,6 +14,7 @@ class Controller
     @num_floors = num_floors
     @logic = logic
     @@next_elevator = 0
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
   def run
@@ -24,7 +25,7 @@ class Controller
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request.to_s)
         elevator = select_elevator(request)
         elevator[:car].controller_q << request
-        # if request[:cmd] === 'END'
+        # if request[:cmd] == 'END'
         #   @elevators.each { |elevator| elevator[:queue] << request }
         #   keep_running = false
         # else
@@ -39,7 +40,7 @@ private
   def logic_fcfs(request)
     elevator = @elevators[@@next_elevator]
     @@next_elevator += 1
-    @@next_elevator = 0 if @@next_elevator === @elevators.length
+    @@next_elevator = 0 if @@next_elevator == @elevators.length
     elevator
   end
 
@@ -76,7 +77,7 @@ private
       end
     end
 
-    if elevator_num === -1  # no elevator found.
+    if elevator_num == -1  # no elevator found.
       elevator = logic_fcfs(request)
     else
       elevator = @elevators[elevator_num]
@@ -96,7 +97,7 @@ private
     when 'C-SCAN'  # Circular SCAN
     when 'C-LOOK'  # Circular LOOK
     else
-      raise "Invalid logic: #{@logic}."
+      raise "Invalid logic: #{@logic}"
     end
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Elevator #{elevator[:id]} selected")
     elevator

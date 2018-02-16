@@ -11,14 +11,14 @@ class Simulator
   @@rng       = nil   # Random number generator.
   @@sim_time  = nil   # Simulated time (in seconds).
 
-  def initialize(name, logic, modifiers, floors, elevators, occupants, debug_level)
+  def initialize(name, logic, modifiers, num_floors, num_elevators, num_occupants, debug_level)
     @id             = MODULE_ID
     @name           = name
     @logic          = logic
     @modifiers      = modifiers
-    @num_floors     = floors
-    @num_elevators  = elevators
-    @num_occupants  = occupants
+    @num_floors     = num_floors
+    @num_elevators  = num_elevators
+    @num_occupants  = num_occupants
     @debug_level    = debug_level
     @@rng = Random.new(RNG_SEED)
 
@@ -28,7 +28,7 @@ class Simulator
 
     @floors     = create_floors(@num_floors)
     @elevators  = create_elevators(@num_elevators, @floors, @modifiers)
-    @controller = create_controller(@elevators, @num_floors, @logic)
+    @controller = create_controller(@elevators, @floors, @logic)
     @occupants  = create_occupants(@num_occupants)
   end
 
@@ -58,39 +58,13 @@ class Simulator
 
 private
 
-  # Create call events.
-  def create_call_events(occupants)
-    calls = []
-    @floors.each do |floor|
-      if !floor.waitlist.empty?
-        going_down = false
-        going_up = false
-        floor.waitlist.each do |occupant|
-          next if !occupant.time_to_board
-          going_down ||= occupant.destination < floor.id
-          going_up ||= occupant.destination > floor.id
-          break if going_up && going_down
-        end
-        # TODO What happened to event?
-        if going_down #&& !floor.call_down
-          floor.press_call_down
-          calls << {time: Simulator::time, cmd: 'CALL', floor: floor.id, direction: 'dn'}
-        end
-        if going_up && !floor.call_up
-          floor.press_call_up
-          calls << {time: Simulator::time, cmd: 'CALL', floor: floor.id, direction: 'up'}
-        end
-      end
-    end
-    calls
-  end
-
   # Create controller.
-  def create_controller(elevators, num_floors, logic)
+  def create_controller(elevators, floors, logic)
     q = Queue.new
-    c = Controller.new(q, elevators, num_floors, logic)
+    c = Controller.new(q, elevators, floors.length, logic)
     t = Thread.new { c.run }
     controller = {queue: q, thread: t, controller: controller}
+    @floors.each { |floor| floor.controller_q = q }
   end
 
   # Create elevators.
@@ -98,9 +72,9 @@ private
     elevators = []
     elevator_count.times do |i|
       elevator_queue  = Queue.new
-      elevator = Elevator.new(i, elevator_queue, floors)
-      elevator_thread = Thread.new { elevator.run }
-      elevators << {id: i, thread: elevator_thread, car: elevator}
+      elevator_car = Elevator.new(i, elevator_queue, floors)
+      elevator_thread = Thread.new { elevator_car.run }
+      elevators << {id: i, thread: elevator_thread, car: elevator_car}
     end
     elevators
   end
@@ -163,7 +137,7 @@ private
     @occupants.each do |occupant|
       arrival_time = @@rng.rand(Simulator::time..Simulator::time+600)  # TODO do a normal distribution of arrival time around 5pm +/- 15
       current_floor = occupant.destination
-      occupant.enq(1, arrival_time)
+      occupant.enq(Floor::GROUND_FLOOR, arrival_time)
       @floors[current_floor].enter_waitlist(occupant)
     end
   end
@@ -173,22 +147,18 @@ private
     @occupants.each do |occupant|
       destination_floor = @@rng.rand(2..@num_floors-1)
       arrival_time = @@rng.rand(0..600)  # TODO do a normal distribution of arrival time around 9am +/- 15
+      @floors[Floor::GROUND_FLOOR].accept_occupant(occupant)
       occupant.enq(destination_floor, arrival_time)
-      @floors[1].insert_occupant(occupant)
-      @floors[1].enter_waitlist(occupant)
-      end
+    end
   end
 
   def run_sym
     while 1
-      @calls = create_call_events(@occupants)
-      @calls.each do |call|
-        @controller[:queue] << call
-      end
+      any_waiters = update_wait_queues
       # for now, morning program is complete when there are no more waiters and no more riders.
-      no_waiters = @floors.all? { |floor| floor.waitlist.length.zero? }
-      no_riders = @elevators.all? { |elevator| elevator[:car].elevator_status[:riders][:occupants].length.zero?}
-      break if no_waiters && no_riders
+      any_riders = @elevators.any? { |elevator| !elevator[:car].elevator_status[:riders][:occupants].length.zero? }
+      any_future_waiters = @occupants.any? { |occupant| occupant.enq_time >= Simulator::time }
+      break if !(any_waiters || any_riders || any_future_waiters)
       sleep LOOP_DELAY
       @@sim_time += LOOP_TIME_INCR
     end
@@ -198,9 +168,20 @@ private
     @@sim_time
   end
 
-
-
-
+  # Move floor occupants to wait queue as needed.
+  # Return true if any waiters, false otherwise.
+  def update_wait_queues
+    any_waiters ||= false
+    @floors.each do |floor|
+      floor.occupants.each do |occupant|
+        if occupant.time_to_board?
+          floor.enter_waitlist(occupant)
+          any_waiters ||= !floor.waitlist.length.zero?
+        end
+      end
+    end
+    any_waiters
+  end
 
 
 
