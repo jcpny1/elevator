@@ -168,9 +168,9 @@ private
   # Move floor occupants to wait queue as needed.
   # Return true if any waiters, false otherwise.
   def update_wait_queues
-    any_waiters ||= false
+    any_waiters = false
     @floors.each do |floor|
-      floor.occupants.each { |occupant| floor.enter_waitlist(occupant) if occupant.time_to_board? }
+      floor.update_wait_queue
       any_waiters ||= !floor.waitlist.length.zero?
     end
     any_waiters

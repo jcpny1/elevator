@@ -3,7 +3,7 @@
 # A Controller may also implement performance improvement functions such as commanding to stage at a particular floor in anticipation of a request.
 class Controller
   LOGGER_MODULE = 'Controller'
-  LOOP_DELAY    = 0.01  # in seconds.
+  LOOP_DELAY    = 1.01  # in seconds.
 
   @@next_elevator = nil
 

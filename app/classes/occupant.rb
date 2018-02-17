@@ -21,6 +21,13 @@ class Occupant < Person
     Logger::msg(Simulator::time, LOGGER_MODULE, id, Logger::DEBUG, 'created')
   end
 
+  # Setup trip data.
+  def enq(destination, time)
+    @destination = destination
+    @enq_time = time
+    @enq = true
+  end
+
   # Trip statistics
   def init_stats
     @trips              = 0
@@ -33,13 +40,6 @@ class Occupant < Person
     # Interim calculations
     @on_waitlist_time   = 0.0
     @on_elevator_time   = 0.0
-  end
-
-  # Setup trip data.
-  def enq(destination, time)
-    @destination = destination
-    @enq_time = time
-    @enq = true
   end
 
   # Boarding elevator. Calculate wait time.

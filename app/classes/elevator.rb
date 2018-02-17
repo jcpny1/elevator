@@ -4,6 +4,7 @@
 
 class Elevator
   LOGGER_MODULE  = 'Elevator'
+  LOOP_DELAY     = 1.01  # seconds.
 
   # Elevator car parameters:
   CAR_SPEED       =  4.0  # in feet per second.
@@ -18,7 +19,6 @@ class Elevator
   DISCHARGE_TIME = 2.0
   DOOR_WAIT_TIME = 3.0
   LOAD_TIME      = 2.0
-  LOOP_DELAY     = 0.01  # seconds.
 
   attr_reader :controller_q, :elevator_status
 

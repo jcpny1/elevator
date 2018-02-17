@@ -48,9 +48,39 @@ class Floor
     FLOOR_HEIGHT
   end
 
-  def enter_waitlist(occupant)
+  def leave_waitlist
     @@floor_semaphore.synchronize {
-      @waitlist << @occupants.delete(occupant)
+      old_occupant_count = @occupants.length
+      old_waitlist_count = @waitlist.length
+      @waitlist.delete_if { |passenger| yield(passenger) }
+      msg "Occupant list now: #{@occupants.length}", Logger::DEBUG if @occupants.length != old_occupant_count
+      msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG if @waitlist.length != old_waitlist_count
+    }
+  end
+
+  def update_wait_queue
+    @@floor_semaphore.synchronize {
+      @occupants.delete_if do |occupant|
+        ret_stat = false
+        if occupant.time_to_board?
+          enter_waitlist(occupant)
+          ret_stat = true
+        end
+        ret_stat
+      end
+    }
+  end
+
+  def waitlist_length
+    @@floor_semaphore.synchronize {
+      @waitlist.length
+    }
+  end
+
+private
+
+  def enter_waitlist(occupant)
+      @waitlist << occupant
       case occupant.destination <=> @id
       when -1
         press_call_down
@@ -62,26 +92,7 @@ class Floor
       occupant.on_waitlist(occupant.enq_time)
       msg "Occupant list now: #{@occupants.length}", Logger::DEBUG
       msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG
-    }
   end
-
-  def leave_waitlist
-    @@floor_semaphore.synchronize {
-      old_occupant_count = @occupants.length
-      old_waitlist_count = @waitlist.length
-      @waitlist.delete_if { |passenger| yield(passenger) }
-      msg "Occupant list now: #{@occupants.length}", Logger::DEBUG if @occupants.length != old_occupant_count
-      msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG if @waitlist.length != old_waitlist_count
-    }
-  end
-
-  def waitlist_length
-    @@floor_semaphore.synchronize {
-      @waitlist.length
-    }
-  end
-
-private
 
   def msg(text_msg, debug_level = Logger::INFO)
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, debug_level, text_msg)
