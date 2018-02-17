@@ -12,12 +12,11 @@ class Floor
   attr_reader :call_down, :call_up, :id, :occupants, :waitlist
 
   def initialize(id)
-    @id = id
-    @call_down = false  # the elevator lobby call down button activation status.
-    @call_up = false    # the elevator lobby call up button activation status.
-    @controller_q = nil # command interface to the elevator Controller.
-    @occupants = []     # persons on a floor that are not waiting for an elevator).
-    @waitlist  = []     # persons on a floor that are waiting for an elevator.
+    @id           = id    # Floor id
+    @call_down    = false # the elevator lobby call down button activation status.
+    @call_up      = false # the elevator lobby call up button activation status.
+    @occupants    = []    # persons on a floor that are not waiting for an elevator).
+    @waitlist     = []    # persons on a floor that are waiting for an elevator.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
@@ -38,10 +37,6 @@ class Floor
   @@floor_semaphore.synchronize {
     @call_up = false
   }
-  end
-
-  def controller_q=(q)
-    @controller_q = q
   end
 
   def self.height
@@ -100,13 +95,11 @@ private
 
   def press_call_down
     @call_down = true
-    @controller_q << {time: Simulator::time, cmd: 'CALL', floor: @id, direction: 'down'}
     msg "Call Down"
   end
 
   def press_call_up
     @call_up = true
-    @controller_q << {time: Simulator::time, cmd: 'CALL', floor: @id, direction: 'up'}
     msg "Call Up"
   end
 end

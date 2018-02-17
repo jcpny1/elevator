@@ -1,11 +1,10 @@
 @id# The Elevator operation simulator.
 # The Simulator mimics user interaction with the elevators.
 class Simulator
-  LOGGER_MODULE      = 'Simulator'  # for console logger.
-
-  LOOP_DELAY      = 0.01 # (seconds) - sleep delay in simulation loop.
-  LOOP_TIME_INCR  = 1.0  # (seconds) - amount of time to advance simulated time for each simulation loop.
-  RNG_SEED        = 101  # for random number generation. Using a static seed value for repeatable simulation runs.
+  LOGGER_MODULE  = 'Simulator' # for console logger.
+  LOOP_DELAY     = 0.25        # (seconds) - sleep delay in simulation loop.
+  LOOP_TIME_INCR = 1.0         # (seconds) - amount of simulated time to advance for each simulation loop.
+  RNG_SEED       = 101         # for random number generation. Using a static seed value for repeatable simulation runs.
 
   @@rng       = nil   # Random number generator.
   @@sim_time  = nil   # Simulated time (in seconds).
@@ -36,23 +35,23 @@ class Simulator
   end
 
   def run
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Morning Rush begin')
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Morning Rush Begin')
     queue_morning_occupants
-    run_sym
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Morning Rush end')
+    run_scenario
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Morning Rush End')
     output_stats
     clear_stats
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush begin')
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush Begin')
     queue_evening_occupants
-    run_sym
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush end')
+    run_scenario
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush End')
     output_stats
-    # cleanup
+# cleanup
   end
 
 private
 
-  # Reset statistics between scenarios.
+  # Reset statistics.
   def clear_stats
     @occupants.each { |occupant| occupant.init_stats }
     @elevators.each { |elevator| elevator[:car].init_stats }
@@ -61,10 +60,9 @@ private
   # Create controller.
   def create_controller(elevators, floors, logic)
     q = Queue.new
-    c = Controller.new(q, elevators, floors.length, logic)
+    c = Controller.new(elevators, floors, logic)
     t = Thread.new { c.run }
     controller = {queue: q, thread: t, controller: controller}
-    @floors.each { |floor| floor.controller_q = q }
   end
 
   # Create elevators.
@@ -93,6 +91,7 @@ private
     occupants
   end
 
+  # Display current statistics.
   def output_stats
     total_trips = 0
     total_trip_time = 0.0
@@ -137,7 +136,7 @@ private
     end
   end
 
-  # Place all occupants on first floor waitlist at random times.
+  # Place all occupants on first floor waitlist at random times going to random floors.
   def queue_morning_occupants
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "queue_morning_occupants")
     @occupants.each do |occupant|
@@ -148,8 +147,9 @@ private
     end
   end
 
-  def run_sym
-    # Scenario is complete when there are no more waiters and no more riders.
+  # Run a scenario simulation.
+  # Scenario is complete when there are no more waiters and no more riders.
+  def run_scenario
     while 1
       any_waiters = update_wait_queues
       any_riders = @elevators.any? { |elevator| !elevator[:car].elevator_status[:riders][:occupants].length.zero? }

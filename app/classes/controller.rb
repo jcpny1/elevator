@@ -1,41 +1,37 @@
-# The Controller receives service requests from users and send commands to elevators.
-# Requests for elevator services are received from floor call buttons. The Controller assigns an  elevator to service those requests.
-# A Controller may also implement performance improvement functions such as commanding to stage at a particular floor in anticipation of a request.
+# The Controller send commands to elevators.
+# The Controller can view each elevator and call button status.
+# The Controller monitors every call button status and assigns elevators to service call requests.
+# The Controller monitors every elevator status and commands the elevator to move when a movement is determined to be necessary.
 class Controller
-  LOGGER_MODULE = 'Controller'
-  LOOP_DELAY    = 0.01  # in seconds.
+  LOGGER_MODULE = 'Controller'  # for console logger.
+  LOOP_DELAY    = 0.01          # (seconds) - sleep delay in controller loop.
 
   @@next_elevator = nil
 
-  def initialize(request_q, elevators, num_floors, logic)
-    @id = 0
-    @request_q  = request_q
-    @elevators  = elevators
-    @num_floors = num_floors
-    @logic = logic
-    @@next_elevator = 0
+  def initialize(elevators, floors, logic)
+    @id         = 0           # Controller id.
+    @elevators  = elevators   # Elevators controlled by this Controller.
+    @floors     = floors      # Floors services by these elevators. For now, assume all elevators service all floors.
+    @logic      = logic       # Elevator control logic name.
+    @@next_elevator = 0       # Used for round-robin elevator selection logic.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
   def run
-    keep_running = true
-    while keep_running
-      while !@request_q.empty?
-        request = @request_q.deq
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request.to_s)
-        elevator = select_elevator(request)
-        elevator[:car].controller_q << request
-        # if request[:cmd] == 'END'
-        #   @elevators.each { |elevator| elevator[:queue] << request }
-        #   keep_running = false
-        # else
-        # end
-      end
+    while 1
+      request = create_request
+      elevator[:car].controller_q << request if !request.nil?
       sleep LOOP_DELAY
     end
   end
 
 private
+
+  def create_request
+    nil
+  end
+
+
 
   def logic_fcfs(request)
     elevator = @elevators[@@next_elevator]
@@ -103,3 +99,131 @@ private
     elevator
   end
 end
+
+
+# def next_destination(destinations)
+#   destination = @elevator_status[:location]
+#   destination += 1
+#   if destination == @floors.length
+#     destination = 1
+#   end
+#   return destination
+#
+#
+#
+#
+#   msg "NEXT DESTINATION: #{destination}, DIRECTION: #{@elevator_status[:direction]}", Logger::DEBUG_3
+#
+#   if going_up?
+#     # Return nearest stop above current location.
+#     up_index = destinations.slice(current_floor...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
+#
+#     if !up_index.nil?
+#       destination = up_index + current_floor
+#
+#       # If car is full, don't consider current floor as a destination (for pickups only).
+#       if car_full? && destination == current_floor && !discharge_on?(current_floor)
+#         up_index = destinations.slice(current_floor + 1...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
+#         destination = up_index + current_floor + 1 if !up_index.nil?
+#       end
+#     end
+#     @elevator_status[:direction] = 'down' if up_index.nil?
+#   end
+#
+#   if going_down?
+#     # Return nearest stop below current location.
+#     down_index = destinations.slice(0..current_floor).rindex { |destination| !destination.nil? }
+#
+#     if !down_index.nil?
+#       destination = down_index
+#
+#       # If car is full, don't consider current floor as a destination.
+#       if car_full? && destination == current_floor
+#         down_index = destinations.slice(0...current_floor).index { |destination| !destination.nil? }
+#         destination = down_index if !down_index.nil?
+#       end
+#     end
+#     @elevator_status[:direction] = '--' if down_index.nil?
+#   end
+#
+#   if stationary? || @elevator_status[:direction].nil?
+#     # Return nearest stop to current location and set appropriate @elevator_status[:direction].
+#     up_index = @elevator_status[:destinations].slice(current_floor+1...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
+#     down_index = @elevator_status[:destinations].slice(0..current_floor-1).rindex { |destination| !destination.nil? }
+#     if up_index.nil? && down_index.nil?
+#       destination = current_floor
+#     elsif !up_index.nil? && !down_index.nil?
+#       # If upper floor closer than lower floor, go up.
+#       if up_index < down_index
+#         @elevator_status[:direction] = 'up'
+#         destination = up_index + current_floor + 1
+#       else
+#         @elevator_status[:direction] = 'down'
+#         destination = down_index
+#       end
+#     elsif !up_index.nil?
+#       @elevator_status[:direction] = 'up'
+#       destination = up_index + current_floor + 1
+#     else
+#       @elevator_status[:direction] = 'down'
+#       destination = down_index
+#     end
+#   end
+#   destination
+# end
+#
+# # Return the next planned direction of travel for this car.
+# def next_direction
+#   case next_stop <=> current_floor
+#   when -1
+#     'dn'
+#   when 0
+#     '--'
+#   when 1
+#     'up'
+#   end
+# end
+#
+#
+# ### CONTROLLER SHOULD DETERMINE THE CAR'S NEXT STOP. NOT THE CAR. CAR JUST GOES TO WHERE ITS TOLD.
+#
+# ### HAVE CAR ASK CONTROLLER LOGIC
+#    ### ELEVATOR -> QUEUE -> CONTROLLER: I'm available. Send next command.
+#    ### CONTROLLER -> QUEUE -> ELEVATOR: [hold, goto x]
+#
+# # Given the existing list of planned stops, which one
+# def next_stop
+#
+#
+#   1. Of current riders, find closest stop to current location.
+#   2. Else find closest stop to current_location.
+#
+#
+#
+#
+#   if stationary? || @elevator_status[:direction].nil?
+#     # Return nearest stop to current location and set appropriate @elevator_status[:direction].
+#     up_index = @elevator_status[:destinations].slice(current_floor+1...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
+#     down_index = @elevator_status[:destinations].slice(0..current_floor-1).rindex { |destination| !destination.nil? }
+#     if up_index.nil? && down_index.nil?
+#       destination = current_floor
+#     elsif !up_index.nil? && !down_index.nil?
+#       # If upper floor closer than lower floor, go up.
+#       if up_index < down_index
+#         @elevator_status[:direction] = 'up'
+#         destination = up_index + current_floor + 1
+#       else
+#         @elevator_status[:direction] = 'down'
+#         destination = down_index
+#       end
+#     elsif !up_index.nil?
+#       @elevator_status[:direction] = 'up'
+#       destination = up_index + current_floor + 1
+#     else
+#       @elevator_status[:direction] = 'down'
+#       destination = down_index
+#     end
+#   end
+#
+# end
+#

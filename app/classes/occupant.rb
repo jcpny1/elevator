@@ -4,7 +4,7 @@ require_relative 'person'
 # The Simulator will place an Occupant on na Floor and will provide the occupant with a destination and a wait queue arrival time.
 # The success of an elevator algorithm will mostly depend on the user experience statistics gathered here.
 class Occupant < Person
-  LOGGER_MODULE  = 'Occupant'
+  LOGGER_MODULE = 'Occupant'  # for console logger.
 
   attr_reader :destination, :enq_time, :max_trip_time, :max_wait_time, :total_trip_time, :total_wait_time, :trips
 
