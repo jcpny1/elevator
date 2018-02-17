@@ -89,7 +89,7 @@ private
 
   def press_call_down
     @call_down = true
-    @controller_q << {time: Simulator::time, cmd: 'CALL', floor: @id, direction: 'dn'}
+    @controller_q << {time: Simulator::time, cmd: 'CALL', floor: @id, direction: 'down'}
     msg "Call Down"
   end
 

@@ -43,7 +43,7 @@ class Elevator
   end
 
   def going_down?
-    @elevator_status[:direction] == 'dn'
+    @elevator_status[:direction] == 'down'
   end
 
   def going_up?
@@ -108,7 +108,7 @@ private
 #     else
 # puts "ARRIVAL2A: #{@elevator_status[:direction]}"
 #       @elevator_status[:direction] = destination_direction
-#       if destination_direction == 'dn'
+#       if destination_direction == 'down'
 #         @floors[current_floor].cancel_call_down
 #       elsif destination_direction == 'up'
 #         @floors[current_floor].cancel_call_up
@@ -127,7 +127,7 @@ private
 
 #TAKE THIS OUT. WILL SET DIRECTION BASED ON CALL DIRECTION. YOU CANT CALL 6 UP or 1 DN.
     if current_floor == @floors.length - 1  # If at top floor,
-      @elevator_status[:direction] = 'dn'
+      @elevator_status[:direction] = 'down'
     elsif current_floor == 1  # If at first floor
       @elevator_status[:direction] = 'up'
     end
@@ -141,15 +141,15 @@ private
 
     # If neither picking or dropping off, stay open DOOR_WAIT_TIME.
     if (discharge_count + pickup_count).zero?
-msg 'ZERO passengers on or off', Logger::DEBUG_3
-msg 'door wait', Logger::DEBUG_3
+      msg 'ZERO passengers on or off', Logger::DEBUG_3
+      msg 'door wait', Logger::DEBUG_3
       advance_next_command_time(DOOR_WAIT_TIME)
     end
   end
 
   # Move car floor_count floors. (-# = down, +# = up.)
   def car_move(floor_count)
-    @elevator_status[:direction] = floor_count.negative? ? 'dn' : 'up'
+    @elevator_status[:direction] = floor_count.negative? ? 'down' : 'up'
     @elevator_status[:location] += floor_count
     @elevator_status[:distance] += floor_count.abs * Floor::height
     execute_command { car_start }
@@ -243,12 +243,12 @@ msg 'door wait', Logger::DEBUG_3
     status[:car] = 'stopped'  # car motion.
   # Direction values:
     #   'up' = car is heading up.
-    #   'dn' = car is heading down.
+    #   'down' = car is heading down.
     #   '--' = car is stationary.
     status[:direction] = '--'
   # Destinations values:
   #   'up' = call on floor on to go up.
-  #   'dn' = call on floor to to down.
+  #   'down' = call on floor to to down.
   #   '--' = no call, discharge stop.
   #   nil = no call, no stop.
     status[:destinations] = Array.new(@floors.length)  # floors for this elevator is requested to stop at.
@@ -274,7 +274,7 @@ msg 'door wait', Logger::DEBUG_3
           destination = up_index + current_floor + 1 if !up_index.nil?
         end
       end
-      @elevator_status[:direction] = 'dn' if up_index.nil?
+      @elevator_status[:direction] = 'down' if up_index.nil?
     end
 
     if going_down?
@@ -305,14 +305,14 @@ msg 'door wait', Logger::DEBUG_3
           @elevator_status[:direction] = 'up'
           destination = up_index + current_floor
         else
-          @elevator_status[:direction] = 'dn'
+          @elevator_status[:direction] = 'down'
           destination = down_index
         end
       elsif !up_index.nil?
         @elevator_status[:direction] = 'up'
         destination = up_index + current_floor
       else
-        @elevator_status[:direction] = 'dn'
+        @elevator_status[:direction] = 'down'
         destination = down_index
       end
     end
@@ -329,9 +329,7 @@ msg 'door wait', Logger::DEBUG_3
     floor = @floors[current_floor]
 
 # > > > TODO call floor to enumerate waiters, and yield back here for per waiter logic
-# binding.pry if current_floor == 3
-    passengers = floor.waitlist
-    passengers.each do |passenger|
+    floor.waitlist.each do |passenger|
       next if going_up? && (passenger.destination < current_floor)
       next if going_down? && (passenger.destination > current_floor)
       break if car_full?
@@ -343,6 +341,7 @@ msg 'door wait', Logger::DEBUG_3
       Simulator::load_passenger(passenger, floor)
       advance_next_command_time(LOAD_TIME)
       pickup_count += 1
+      true
     end
     pickup_count
   end
