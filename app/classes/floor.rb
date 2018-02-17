@@ -5,7 +5,6 @@ class Floor
   GROUND_FLOOR  = 1     # the floor where occupants enter and exit the building.
   FLOOR_HEIGHT  = 12.0  # the height of each floor.
 
-
 # > > > DELETE ALL ATTR_READERS
 
   @@floor_semaphore = Mutex.new   # Floor objects are subject to multithreaded r/w access.
@@ -66,13 +65,14 @@ class Floor
     }
   end
 
-  def leave_waitlist(occupant)
-    occ = nil
+  def leave_waitlist
     @@floor_semaphore.synchronize {
-      occ = @waitlist.delete(occupant)
-      msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG
+      old_occupant_count = @occupants.length
+      old_waitlist_count = @waitlist.length
+      @waitlist.delete_if { |passenger| yield(passenger) }
+      msg "Occupant list now: #{@occupants.length}", Logger::DEBUG if @occupants.length != old_occupant_count
+      msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG if @waitlist.length != old_waitlist_count
     }
-    occ
   end
 
   def waitlist_length

@@ -8,8 +8,6 @@ class Occupant < Person
 
   attr_reader :destination, :enq_time, :max_trip_time, :max_wait_time, :total_trip_time, :total_wait_time, :trips
 
-  # attr_reader :completed_trips, :destination, :weight
-
   # A trip starts when an occupant arrives at an elevator lobby (is moved from a floor's occupant list to a floor's waitlist).
   # A ride begins when an occupant enters an elevator (is moved from a floor's waitlist to an elevator's rider list).
   # A ride and a trip both end when an occupant is discharged from an elevator (moved from an elevator's rider list to a floor's occupant list).

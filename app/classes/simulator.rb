@@ -31,11 +31,6 @@ class Simulator
     @occupants  = create_occupants(@num_occupants)
   end
 
-  def self.load_passenger(passenger, floor)
-    passenger.on_elevator(Simulator::time)
-    floor.leave_waitlist(passenger)
-  end
-
   def self.rng
     @@rng
   end
@@ -53,11 +48,6 @@ class Simulator
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, 'Evening Rush end')
     output_stats
     # cleanup
-  end
-
-  def self.unload_passenger(passenger, floor)
-    passenger.on_floor(Simulator::time)
-    floor.accept_occupant(passenger)
   end
 
 private
@@ -144,7 +134,6 @@ private
       arrival_time = @@rng.rand(Simulator::time..Simulator::time+600)  # TODO do a normal distribution of arrival time around 5pm +/- 15
       current_floor = occupant.destination
       occupant.enq(Floor::GROUND_FLOOR, arrival_time)
-      # @floors[current_floor].enter_waitlist(occupant)
     end
   end
 
