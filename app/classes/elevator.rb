@@ -4,7 +4,7 @@
 
 class Elevator
   LOGGER_MODULE  = 'Elevator'
-  LOOP_DELAY     = 1.01  # seconds.
+  LOOP_DELAY     = 0.01  # seconds.
 
   # Elevator car parameters:
   CAR_SPEED       =  4.0  # in feet per second.
@@ -70,7 +70,7 @@ class Elevator
     while 1
       process_controller_commands
       destination = next_destination(@elevator_status[:destinations])
-
+      msg "ELEVATOR LOOP: DESTINATION: #{destination}, LOCATION: #{@elevator_status[:location]}", Logger::DEBUG_3
       if destination != prior_destination
         msg "Next destination: #{destination}, Current location: #{@elevator_status[:location]}", Logger::DEBUG
         prior_destination = destination
@@ -97,10 +97,11 @@ private
 
   # Execute arrival procedures.
   def car_arrival
-    execute_command { car_stop }
+    execute_command { car_stop  }
     execute_command { door_open }
 
     @elevator_status[:direction] = @elevator_status[:destinations][current_floor]
+    msg "CAR ARRIVAL: DIRECTION1: #{@elevator_status[:direction]}", Logger::DEBUG_3
 
     # Discharge cycle.
     discharge_count = discharge_passengers
@@ -110,13 +111,14 @@ private
     pickup_count = pickup_passengers
     msg "picked up #{pickup_count} on #{current_floor}" if pickup_count.positive?
 
-    @elevator_status[:destinations][current_floor] = nil
-
     # If neither picking or dropping off, stay open DOOR_WAIT_TIME.
     if (discharge_count + pickup_count).zero?
       msg 'ZERO passengers on or off', Logger::DEBUG_3
       msg 'door wait', Logger::DEBUG_3
+      @elevator_status[:destinations][current_floor] = '--'
       advance_next_command_time(DOOR_WAIT_TIME)
+    else
+      @elevator_status[:destinations][current_floor] = nil
     end
   end
 
@@ -233,7 +235,9 @@ private
   end
 
   def next_destination(destinations)
-    destination = nil
+    destination = @elevator_status[:location]
+    msg "NEXT DESTINATION: #{destination}, DIRECTION: #{@elevator_status[:direction]}", Logger::DEBUG_3
+
     if going_up?
       # Return nearest stop above current location.
       up_index = destinations.slice(current_floor...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
@@ -268,22 +272,22 @@ private
 
     if stationary?
       # Return nearest stop to current location and set appropriate @elevator_status[:direction].
-      up_index = @elevator_status[:destinations].slice(current_floor...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
-      down_index = @elevator_status[:destinations].slice(0..current_floor).rindex { |destination| !destination.nil? }
+      up_index = @elevator_status[:destinations].slice(current_floor+1...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
+      down_index = @elevator_status[:destinations].slice(0..current_floor-1).rindex { |destination| !destination.nil? }
       if up_index.nil? && down_index.nil?
         destination = current_floor
       elsif !up_index.nil? && !down_index.nil?
         # If upper floor closer than lower floor, go up.
         if up_index < down_index
           @elevator_status[:direction] = 'up'
-          destination = up_index + current_floor
+          destination = up_index + current_floor + 1
         else
           @elevator_status[:direction] = 'down'
           destination = down_index
         end
       elsif !up_index.nil?
         @elevator_status[:direction] = 'up'
-        destination = up_index + current_floor
+        destination = up_index + current_floor + 1
       else
         @elevator_status[:direction] = 'down'
         destination = down_index
