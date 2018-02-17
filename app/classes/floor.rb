@@ -60,9 +60,9 @@ class Floor
       when 1
         press_call_up
       end
+      occupant.on_waitlist(occupant.enq_time)
       msg "Occupant list now: #{@occupants.length}", Logger::DEBUG
       msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG
-      occupant.on_waitlist(occupant.enq_time)
     }
   end
 

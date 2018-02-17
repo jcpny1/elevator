@@ -118,7 +118,7 @@ private
 
     # Discharge cycle.
     discharge_count = discharge_passengers
-    msg "discharging #{discharge_count} on #{current_floor}" if discharge_count.positive?
+    msg "discharged #{discharge_count} on #{current_floor}" if discharge_count.positive?
 
 # if stopping here for a down call, pickup down passengers and proceed down.
 # if moving up to get a down call, we should not be picking up any passengers until we arrive at call floor.
@@ -133,7 +133,7 @@ private
     end
     # Pickup cycle.
     pickup_count = pickup_passengers
-    msg "picking up #{pickup_count} on #{current_floor}" if pickup_count.positive?
+    msg "picked up #{pickup_count} on #{current_floor}" if pickup_count.positive?
 
     @elevator_status[:destinations][current_floor] = nil
 
@@ -339,8 +339,8 @@ msg 'door wait', Logger::DEBUG_3
       @elevator_status[:riders][:weight] += passenger.weight
       @elevator_status[:riders][:occupants] << passenger
       @elevator_status[:destinations][passenger.destination] = '--' if @elevator_status[:destinations][passenger.destination].nil?
-msg "Destinations: #{@elevator_status[:destinations].join(', ')}", Logger::DEBUG
-      floor.leave_waitlist(passenger).on_elevator(Simulator::time)
+      msg "Destinations: #{@elevator_status[:destinations].join(', ')}", Logger::DEBUG
+      Simulator::load_passenger(passenger, floor)
       advance_next_command_time(LOAD_TIME)
       pickup_count += 1
     end
