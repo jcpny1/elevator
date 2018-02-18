@@ -3,6 +3,7 @@
 # The Controller monitors every call button status and assigns elevators to service call requests.
 # The Controller monitors every elevator status and commands the elevator to move when a movement is determined to be necessary.
 class Controller
+  
   LOGGER_MODULE = 'Controller'  # for console logger.
   LOOP_DELAY    = 0.01          # (seconds) - sleep delay in controller loop.
 
@@ -15,13 +16,13 @@ class Controller
   end
 
   def run
-    while 1
+    while true
       request = create_request
       if !request.nil?
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request)
         elevator = @elevators[request[:elevator_idx]]
         elevator[:car].command_q << request
-        elevator[:car].elevator_status[:car] = 'processing'
+        elevator[:car].status = 'processing'
       end
       sleep LOOP_DELAY
     end
@@ -34,55 +35,74 @@ private
   def create_request
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG_2, 'create request')
     request = nil
+
+### USE ELEVATOR'S STOP[_BUTTONS] ARRAY
+
     # 1. If waiting elevator with riders then
-    #      Send elevator to rider floor closest to elevator current location.
-    elevator = waiting_elevator_with_riders
+    #      Send elevator to closest elevator stop in direction of travel.
+    elevator = elevator_waiting_with_riders
     if !elevator.nil?
-      rider = elevator[:car].elevator_status[:riders][:occupants][0]
-      destination = rider.destination
-      floor = @floors[destination]
-      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
+      if fcfs?
+        rider = elevator[:car].elevator_status[:riders][:occupants][0]
+        destination = rider.destination
+      else
+        destination = e.next_stop
+      end
+      # floor = @floors[destination]
+      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination}
     else
     # 2. If floor with a waiter then
     #      If waiting elevator then
     #        Send elevator to waiter's floor.
       floor = floor_with_waiter
-      elevator = waiting_elevator
+      elevator = elevator_waiting
       if !floor.nil? && !elevator.nil?
         request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
       else
-      # floor = next_floor
-      # if !floor.nil?
-      #   elevator = next_elevator
-      #   if !elevator.nil?
-      #     request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
-      #   end
+      # 3. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
+        elevator = elavator_waiting_at_floor_with_waiters
+        if !elevator.nil?
+          current_floor_idx = elevator[:car].current_floor
+          destination_floor_idx = @floors[current_floor_idx].waitlist[0].destination
+          request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination_floor_idx}
+        end
       end
     end
     request
   end
 
+  # Using First Come, First Served logic?
+  def fcfs?
+    @logic == 'FCFS'
+  end
+
   def floor_with_waiter
-    @floors.find { |f| !f.waitlist_length.zero? }
+    @floors.find { |f| !f.has_waiters? }
   end
 
-  def waiting_elevator
-    @elevators.find { |e| e[:car].waiting? }
+  def elevator_waiting(floor_id=nil)
+    if floor_id.nil?
+      @elevators.find { |e| e[:car].waiting? }
+    else
+      @elevators.find { |e| e[:car].waiting? && e[:car].current_floor == floor_id }
+    end
   end
 
-  def waiting_elevator_with_riders
+  def elavator_waiting_at_floor_with_waiters
+    @elevators.find { |e| e[:car].waiting? && !@floors[e[:car].current_floor].has_waiters? }
+  end
+
+  def elevator_waiting_with_riders
     @elevators.find { |e| e[:car].waiting? && e[:car].has_riders? }
   end
 
   def next_floor
     @floors.find { |f| f.call_down || f.call_up }
- end
+  end
 
  def next_elevator
-   @elevators.find { |e| e[:car].elevator_status[:car] == 'waiting' }
+   @elevators.find { |e| e[:car].status == 'waiting' }
  end
-
-
 
 
 
@@ -135,7 +155,7 @@ private
   def select_elevator(request)
     elevator = nil
     case @logic
-    when 'FCFS'    # First Come, First Serve
+    when 'FCFS'    # First Come, First Served
       elevator = logic_fcfs(request)
     when 'SSTF'    # Shortest Seek Time First
       elevator = logic_sstf(request)

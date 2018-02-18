@@ -1,6 +1,6 @@
 # A Console Logger.
 module Logger
-
+  
   # Modules:
   #   'Controller'
   #   'Elevator'

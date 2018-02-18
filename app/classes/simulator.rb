@@ -1,6 +1,7 @@
-@id# The Elevator operation simulator.
+# The Elevator operation simulator.
 # The Simulator mimics user interaction with the elevators.
 class Simulator
+
   LOGGER_MODULE  = 'Simulator' # for console logger.
   LOOP_DELAY     = 0.25        # (seconds) - sleep delay in simulation loop.
   LOOP_TIME_INCR = 1.0         # (seconds) - amount of simulated time to advance for each simulation loop.
@@ -131,7 +132,6 @@ private
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "queue_evening_occupants")
     @occupants.each do |occupant|
       arrival_time = @@rng.rand(Simulator::time..Simulator::time+600)  # TODO do a normal distribution of arrival time around 5pm +/- 15
-      current_floor = occupant.destination
       occupant.enq(Floor::GROUND_FLOOR, arrival_time)
     end
   end
@@ -140,7 +140,7 @@ private
   def queue_morning_occupants
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "queue_morning_occupants")
     @occupants.each do |occupant|
-      destination_floor = @@rng.rand(2..@num_floors-1)
+      destination_floor = @@rng.rand(2..@num_floors)
       arrival_time = @@rng.rand(0..600)  # TODO do a normal distribution of arrival time around 9am +/- 15
       @floors[Floor::GROUND_FLOOR].accept_occupant(occupant)
       occupant.enq(destination_floor, arrival_time)
@@ -150,7 +150,7 @@ private
   # Run a scenario simulation.
   # Scenario is complete when there are no more waiters and no more riders.
   def run_scenario
-    while 1
+    while true
       any_waiters = update_wait_queues
       any_riders = @elevators.any? { |elevator| !elevator[:car].elevator_status[:riders][:occupants].length.zero? }
       any_future_waiters = @occupants.any? { |occupant| occupant.enq_time >= Simulator::time }

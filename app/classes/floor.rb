@@ -1,16 +1,16 @@
 # A floor of a building.
 # Each floor contain an up and a down elevator call button and a wait queue for arriving passengers.
 class Floor
+  
+  # > > > DELETE ALL ATTR_READERS
+  attr_reader :call_down, :call_up, :id, :occupants, :waitlist
+
   LOGGER_MODULE = 'Floor'
   GROUND_FLOOR  = 1     # the floor where occupants enter and exit the building.
   FLOOR_HEIGHT  = 12.0  # the height of each floor.
 
-# > > > DELETE ALL ATTR_READERS
-
   @@floor_semaphore = Mutex.new   # Floor objects are subject to multithreaded r/w access.
                                   # Concurrency is improved by having one semaphore for each floor instead of one for all floors.
-  attr_reader :call_down, :call_up, :id, :occupants, :waitlist
-
   def initialize(id)
     @id           = id    # Floor id
     @call_down    = false # the elevator lobby call down button activation status.
@@ -30,13 +30,23 @@ class Floor
   def cancel_call_down
   @@floor_semaphore.synchronize {
     @call_down = false
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel call down on #{@id}")
   }
   end
 
   def cancel_call_up
   @@floor_semaphore.synchronize {
     @call_up = false
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel call up on #{@id}")
   }
+  end
+
+  def has_waiters?
+    waiters = false
+    @@floor_semaphore.synchronize {
+      waiters = @waitlist.length.zero?
+    }
+    waiters
   end
 
   def self.height
@@ -66,12 +76,6 @@ class Floor
     }
   end
 
-  def waitlist_length
-    @@floor_semaphore.synchronize {
-      @waitlist.length
-    }
-  end
-
 private
 
   def enter_waitlist(occupant)
@@ -94,12 +98,16 @@ private
   end
 
   def press_call_down
-    @call_down = true
-    msg "call down"
+    if !@call_down
+      msg "call down"
+      @call_down = true
+    end
   end
 
   def press_call_up
-    @call_up = true
-    msg "call up"
+    if !@call_up
+      msg "call up"
+      @call_up = true
+    end
   end
 end

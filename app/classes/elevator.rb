@@ -3,6 +3,9 @@
 # An Elevator has floor selection buttons that riders can press to select a destination floor.
 
 class Elevator
+
+  attr_reader :command_q, :elevator_status, :id
+
   LOGGER_MODULE = 'Elevator'  # for console logger.
   LOOP_DELAY    = 0.1         # (seconds) - sleep delay in main loop.
 
@@ -19,8 +22,6 @@ class Elevator
   DISCHARGE_TIME = 2.0
   DOOR_WAIT_TIME = 3.0
   LOAD_TIME      = 2.0
-
-  attr_reader :command_q, :elevator_status, :id
 
   def initialize(id, command_q, floors)
     @id              = id                   # Elevator id.
@@ -51,21 +52,56 @@ class Elevator
   end
 
   def has_riders?
-    @elevator_status[:riders][:count] > 0
+    !@elevator_status[:riders][:count].zero?
   end
 
-  def stationary?
-    @elevator_status[:direction] == '--'
-  end
-
-  def waiting?
-    @elevator_status[:car] == 'waiting'
-  end
-
-  # Runtime statistics
+  # Reset runtime statistics
   def init_stats
     @elevator_status[:distance] = 0.0  # cumulative distance traveled.
   end
+
+  # Return elevator's next stop.
+  def next_stop
+    stop = nil
+    if going_down?
+      # return next true value in stops list below current stop.
+      # if none, error.
+      stop = next_stop_down
+      raise "going down without a destination" if stop.nil?
+    elsif going_up?
+      # return next true value in stops list above current stop.
+      # if none, error.
+      stop = next_stop_up
+      raise "going up without a destination" if stop.nil?
+    else
+      # waiting or stopped.
+      # return closest stop in any direction.
+      down_stop = next_stop_down
+      up_stop = next_stop_up
+
+      if down_stop.nil?
+        stop = up_stop
+      elsif up_stop.nil?
+        stop = down_stop
+      else
+        # for now, we'll bias equidistant stops to the up direction.
+        # we may want to adjust that with time-of-day optimizations.
+        dn_stop_diff = current_floor - dn_stop
+        up_stop_diff = up_stop - current_floor
+        stop = dn_stop_diff < up_stop_diff ? dn_stop : up_stop
+      end
+    end
+  end
+
+  def next_stop_down
+    @elevator_status[:stops].slice(0...current_floor).rindex { |stop| stop }
+  end
+
+  def next_stop_up
+    @elevator_status[:stops].slice(current_floor + 1...@elevator_status[:stops].length).index { |stop| stop }
+  end
+
+
 
   # Main logic:
   #  1. Stop at floor
@@ -76,7 +112,7 @@ class Elevator
   #  5. Goto step 1.
   def run
     destination = Floor::GROUND_FLOOR
-    while 1
+    while true
       if !@command_q.length.zero?
         request = @command_q.deq
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "requst received: #{request}, current location: #{@elevator_status[:location]}")
@@ -89,12 +125,30 @@ class Elevator
       when 1
         execute_command { car_move( 1) }
       when 0
-        execute_command { car_stop    }
-        execute_command { car_arrival }
-        execute_command { car_waiting }
+        if !waiting?  # then we are just arriving at this floor. (To prevent duplicate arrivals in sim loop.)
+          execute_command { car_stop    }
+          execute_command { car_arrival }
+          execute_command { car_waiting }
+        end
       end
       sleep LOOP_DELAY
     end
+  end
+
+  def status
+    @elevator_status[:car]
+  end
+
+  def status=(s)
+    @elevator_status[:car] = s
+  end
+
+  def stationary?
+    @elevator_status[:direction] == '--'
+  end
+
+  def waiting?
+    @elevator_status[:car] == 'waiting'
   end
 
 private
@@ -104,16 +158,28 @@ private
     @elevator_status[:time] += num
   end
 
+  # Clear stop request button for given floor.
+  def cancel_stop(floor_idx)
+    @elevator_status[:stops][floor_idx] = false
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel_stop. stops: #{@elevator_status[:stops].join(', ')}")
+  end
+
   # Elevator car arrives at a floor.
   def car_arrival
     execute_command { door_open }
     discharge_passengers
+    cancel_stop(current_floor)
   end
 
   # Elevator car departs a floor.
   def car_departure
     pickup_passengers
     execute_command { door_close }
+    if going_down?
+      @floors[current_floor].cancel_call_down
+    else
+      @floors[current_floor].cancel_call_up
+    end
   end
 
   # Move car floor_count floors. (-# = down, +# = up.)
@@ -172,7 +238,7 @@ private
       discharge_count += 1
       true
     end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "discharged #{discharge_count} on #{current_floor}") if !discharge_count.zero?
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "discharged #{discharge_count} on #{current_floor}") if !discharge_count.zero?
     discharge_count
   end
 
@@ -224,7 +290,6 @@ private
   #   'down' = call on floor to to down.
   #   '--' = no call, discharge stop.
   #   nil = no call, no stop.
-    status[:destinations] = Array.new(@floors.length)  # floors for this elevator is requested to stop at.
     status[:door]      = 'closed'    # door status.
     status[:location]  = 1           # floor.
     status[:riders]    = {count: 0, weight: 0, occupants: []}  # occupants
@@ -241,15 +306,14 @@ private
         @elevator_status[:riders][:count]  += 1
         @elevator_status[:riders][:weight] += passenger.weight
         @elevator_status[:riders][:occupants] << passenger
-        @elevator_status[:stops][passenger.destination] = true
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:destinations].join(', ')}")
+        set_stop(passenger.destination)
         passenger.on_elevator(Simulator::time)
         advance_elevator_time(LOAD_TIME)
         pickup_count += 1
         true
       end
     end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "picked up #{pickup_count} on #{current_floor}") if !pickup_count.zero?
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "picked up #{pickup_count} on #{current_floor}") if !pickup_count.zero?
     pickup_count
   end
 
@@ -267,10 +331,15 @@ private
   # Handle GOTO command.
   def process_goto_request(request)
     request_floor = request[:floor_idx].to_i
-    @elevator_status[:stops][request_floor] = true
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:stops].join(', ')}")
+    set_stop(request_floor)
     @elevator_status[:direction] = request_floor < current_floor ? 'down' : 'up'
     execute_command { car_departure }
     request_floor
+  end
+
+  # Set stop request button for given floor.
+  def set_stop(floor_idx)
+    @elevator_status[:stops][floor_idx] = true
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "set_stop. stops: #{@elevator_status[:stops].join(', ')}")
   end
 end
