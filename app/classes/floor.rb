@@ -95,11 +95,11 @@ private
 
   def press_call_down
     @call_down = true
-    msg "Call Down"
+    msg "call down"
   end
 
   def press_call_up
     @call_up = true
-    msg "Call Up"
+    msg "call up"
   end
 end

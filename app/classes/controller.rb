@@ -4,7 +4,7 @@
 # The Controller monitors every elevator status and commands the elevator to move when a movement is determined to be necessary.
 class Controller
   LOGGER_MODULE = 'Controller'  # for console logger.
-  LOOP_DELAY    = 1.01          # (seconds) - sleep delay in controller loop.
+  LOOP_DELAY    = 0.01          # (seconds) - sleep delay in controller loop.
 
   def initialize(elevators, floors, logic)
     @id         = 0          # Controller id.
@@ -21,6 +21,7 @@ class Controller
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request)
         elevator = @elevators[request[:elevator_idx]]
         elevator[:car].command_q << request
+        elevator[:car].elevator_status[:car] = 'processing'
       end
       sleep LOOP_DELAY
     end

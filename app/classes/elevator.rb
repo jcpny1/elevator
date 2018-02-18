@@ -209,9 +209,10 @@ private
   def new_elevator_status
     status = {}
     # Car values:
-    #   'moving'  = car is moving to a floor.
-    #   'stopped' = car is stopped at a floor.
-    #   'waiting' = car is waiting for instructions.
+    #   'executing' = car is processing a command.
+    #   'moving'    = car is moving to a floor.
+    #   'stopped'   = car is stopped at a floor.
+    #   'waiting'   = car is waiting for instructions.
     status[:car] = 'stopped'  # car motion.
   # Direction values:
     #   'up' = car is heading up.
