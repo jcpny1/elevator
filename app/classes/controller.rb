@@ -3,7 +3,7 @@
 # The Controller monitors every call button status and assigns elevators to service call requests.
 # The Controller monitors every elevator status and commands the elevator to move when a movement is determined to be necessary.
 class Controller
-  
+
   LOGGER_MODULE = 'Controller'  # for console logger.
   LOOP_DELAY    = 0.01          # (seconds) - sleep delay in controller loop.
 
@@ -48,23 +48,22 @@ private
       else
         destination = e.next_stop
       end
-      # floor = @floors[destination]
       request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination}
     else
-    # 2. If floor with a waiter then
-    #      If waiting elevator then
-    #        Send elevator to waiter's floor.
-      floor = floor_with_waiter
-      elevator = elevator_waiting
-      if !floor.nil? && !elevator.nil?
-        request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
+      # 2. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
+      elevator = elavator_waiting_at_floor_with_waiters
+      if !elevator.nil?
+        current_floor_idx = elevator[:car].current_floor
+        destination_floor_idx = @floors[current_floor_idx].waitlist[0].destination
+        request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination_floor_idx}
       else
-      # 3. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
-        elevator = elavator_waiting_at_floor_with_waiters
-        if !elevator.nil?
-          current_floor_idx = elevator[:car].current_floor
-          destination_floor_idx = @floors[current_floor_idx].waitlist[0].destination
-          request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination_floor_idx}
+        # 3. If floor with a waiter then
+        #      If waiting elevator then
+        #        Send elevator to waiter's floor.
+        floor = floor_with_waiter
+        elevator = elevator_waiting
+        if !floor.nil? && !elevator.nil?
+          request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
         end
       end
     end
