@@ -20,10 +20,10 @@ class Elevator
   DOOR_WAIT_TIME = 3.0
   LOAD_TIME      = 2.0
 
-  attr_reader :elevator_status
+  attr_reader :command_q, :elevator_status, :id
 
   def initialize(id, command_q, floors)
-    @id = id
+    @id              = id                   # Elevator id.
     @command_q       = command_q            # to receive requests from the controller.
     @floors          = floors               # on each floor, load from waitlist, discharge to occupant list.
     @elevator_status = new_elevator_status  # keeps track of what the elevator is doing and has done.
@@ -101,9 +101,60 @@ private
 
   # Elevator car departs a floor.
   def car_departure
-    pickup_passengers(next_direction)
+    pickup_passengers
     execute_command { door_close }
   end
+
+  # Yields to a code block once simulation time catches up to elevator time.
+  def execute_command
+    sleep LOOP_DELAY until Simulator::time >= @elevator_status[:time]
+    yield
+  end
+
+  # Pickup passengers from floor's wait list.
+  def pickup_passengers
+    pickup_count = 0
+    @floors[current_floor].leave_waitlist do |passenger|
+      if ((going_up? && (passenger.destination > current_floor)) || (going_down? && (passenger.destination < current_floor))) && !car_full?
+        @elevator_status[:riders][:count]  += 1
+        @elevator_status[:riders][:weight] += passenger.weight
+        @elevator_status[:riders][:occupants] << passenger
+        @elevator_status[:stops][passenger.destination] = true
+        msg "Destinations: #{@elevator_status[:destinations].join(', ')}", Logger::DEBUG
+        passenger.on_elevator(Simulator::time)
+        advance_elevator_time(LOAD_TIME)
+        pickup_count += 1
+        true
+      end
+    end
+    msg "picked up #{pickup_count} on #{current_floor}" if pickup_count.positive?
+    pickup_count
+  end
+
+  # Process controller request.
+  def process_controller_command(request)
+    case request[:cmd]
+    when 'GOTO'
+      process_goto_request(request)
+    when 'END'
+    else
+      raise "Invalid command: #{request[:cmd]}"
+    end
+  end
+
+  # Handle GOTO command.
+  def process_goto_request(request)
+    request_floor = request[:floor_idx].to_i
+    @elevator_status[:stops][request_floor] = true
+    msg "Destinations: #{@elevator_status[:stops].join(', ')}", Logger::DEBUG
+    @elevator_status[:direction] = request_floor < current_floor ? 'down' : 'up'
+    execute_command { car_departure }
+    request_floor
+  end
+
+
+
+
 
   # @elevator_status[:direction] = @elevator_status[:destinations][current_floor]
 
@@ -190,12 +241,6 @@ private
     msg "door #{@elevator_status[:door]}", Logger::DEBUG
   end
 
-  # Yields to a code block once simulation time catches up to elevator time.
-  def execute_command
-    sleep LOOP_DELAY until Simulator::time >= @elevator_status[:time]
-    yield
-  end
-
 # TODO remove this method when all converted to Logger
   def msg(text_msg, debug_level = Logger::DEBUG)
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, debug_level, text_msg)
@@ -237,47 +282,4 @@ private
     !@elevator_status[:destinations].any? { |d| !d.nil? }
   end
 
-  # Pickup passengers from floor's wait list.
-  def pickup_passengers
-    pickup_count = 0
-    @floors[current_floor].leave_waitlist do |passenger|
-      if ((going_up? && (passenger.destination >= current_floor)) || (going_down? && (passenger.destination <= current_floor))) && !car_full?
-        @elevator_status[:riders][:count]  += 1
-        @elevator_status[:riders][:weight] += passenger.weight
-        @elevator_status[:riders][:occupants] << passenger
-        @elevator_status[:destinations][passenger.destination] = '--' if @elevator_status[:destinations][passenger.destination].nil?
-        msg "Destinations: #{@elevator_status[:destinations].join(', ')}", Logger::DEBUG
-        passenger.on_elevator(Simulator::time)
-        advance_elevator_time(LOAD_TIME)
-        pickup_count += 1
-        true
-      end
-    end
-    msg "picked up #{pickup_count} on #{current_floor}" if pickup_count.positive?
-    pickup_count
-  end
-
-  def process_controller_commands
-    # Check controller for incoming commands.
-    while !@command_q.empty?
-      request = @command_q.deq
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request.to_s)
-      case request[:cmd]
-      when 'CALL'
-        process_floor_request(request)
-      when 'END'
-        drain_queue = true
-      else
-        raise "Invalid command: #{request[:cmd]}"
-      end
-    end
-  end
-
-  # Handle floor request
-  def process_floor_request(request)
-    request_floor = request[:floor].to_i
-    @elevator_status[:destinations][request_floor] = request[:direction]
-    msg "Destinations: #{@elevator_status[:destinations].join(', ')}", Logger::DEBUG
-    execute_command { car_departure }
-  end
 end

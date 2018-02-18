@@ -69,8 +69,8 @@ private
   def create_elevators(elevator_count, floors, modifiers)
     elevators = []
     elevator_count.times do |i|
-      elevator_queue  = Queue.new
-      elevator_car = Elevator.new(i, elevator_queue, floors)
+      command_queue  = Queue.new
+      elevator_car = Elevator.new(i, command_queue, floors)
       elevator_thread = Thread.new { elevator_car.run }
       elevators << {id: i, thread: elevator_thread, car: elevator_car}
     end

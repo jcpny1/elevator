@@ -4,7 +4,7 @@
 # The Controller monitors every elevator status and commands the elevator to move when a movement is determined to be necessary.
 class Controller
   LOGGER_MODULE = 'Controller'  # for console logger.
-  LOOP_DELAY    = 0.01          # (seconds) - sleep delay in controller loop.
+  LOOP_DELAY    = 10.01          # (seconds) - sleep delay in controller loop.
 
   @@next_elevator = nil
 
@@ -20,16 +20,29 @@ class Controller
   def run
     while 1
       request = create_request
-      elevator[:car].controller_q << request if !request.nil?
+      if !request.nil?
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request)
+        elevator = @elevators[request[:elevator_idx]]
+        elevator[:car].command_q << request
+      end
       sleep LOOP_DELAY
     end
   end
 
 private
 
+  # Create elevator movement requests given current floor and elevator states.
+  # Returns elevator command, or nil if nothing to do.
   def create_request
-    nil
+    elevator = @elevators[0]
+    floor = @floors[1]
+    {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
   end
+
+
+
+
+
 
 
 
