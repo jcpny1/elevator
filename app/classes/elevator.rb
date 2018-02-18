@@ -28,7 +28,7 @@ class Elevator
     @floors          = floors               # on each floor, load from waitlist, discharge to occupant list.
     @elevator_status = new_elevator_status  # keeps track of what the elevator is doing and has done.
     init_stats
-    msg 'created'
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
   # For coding simplicity, we'll allow boarding until car is overweight.
@@ -69,9 +69,9 @@ class Elevator
   def run
     while 1
       request = @command_q.deq
-      msg "Requst received: #{request.to_s}, Current location: #{@elevator_status[:location]}", Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Requst received: #{request}, Current location: #{@elevator_status[:location]}")
       destination = process_controller_command(request)
-      msg "Next destination: #{destination}, Current location: #{@elevator_status[:location]}", Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Next destination: #{destination}, Current location: #{@elevator_status[:location]}")
       case destination <=> @elevator_status[:location]
       when -1
         execute_command { car_move(-1) }
@@ -120,14 +120,14 @@ private
         @elevator_status[:riders][:weight] += passenger.weight
         @elevator_status[:riders][:occupants] << passenger
         @elevator_status[:stops][passenger.destination] = true
-        msg "Destinations: #{@elevator_status[:destinations].join(', ')}", Logger::DEBUG
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:destinations].join(', ')}")
         passenger.on_elevator(Simulator::time)
         advance_elevator_time(LOAD_TIME)
         pickup_count += 1
         true
       end
     end
-    msg "picked up #{pickup_count} on #{current_floor}" if pickup_count.positive?
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "picked up #{pickup_count} on #{current_floor}")
     pickup_count
   end
 
@@ -146,7 +146,7 @@ private
   def process_goto_request(request)
     request_floor = request[:floor_idx].to_i
     @elevator_status[:stops][request_floor] = true
-    msg "Destinations: #{@elevator_status[:stops].join(', ')}", Logger::DEBUG
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:stops].join(', ')}")
     @elevator_status[:direction] = request_floor < current_floor ? 'down' : 'up'
     execute_command { car_departure }
     request_floor
@@ -170,7 +170,7 @@ private
   def car_start
     if !@elevator_status[:car].eql? 'moving'
       execute_command { door_close }
-      msg "starting #{@elevator_status[:direction]}", Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "starting #{@elevator_status[:direction]}")
       @elevator_status[:car] = 'moving'
       advance_elevator_time(CAR_START)
       car_status
@@ -179,15 +179,15 @@ private
 
   def car_status
     if !@elevator_status[:car].eql? 'moving'
-      msg "#{@elevator_status[:car]} on #{@elevator_status[:location]}", Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@elevator_status[:car]} on #{@elevator_status[:location]}")
     else
-      msg "#{@elevator_status[:car]} #{@elevator_status[:direction]}", Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@elevator_status[:car]} #{@elevator_status[:direction]}")
     end
   end
 
   def car_stop
     if @elevator_status[:car].eql? 'moving'
-      msg "stopping on #{@elevator_status[:location]}", Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "stopping on #{@elevator_status[:location]}")
       @elevator_status[:car] = 'stopped'
       advance_elevator_time(CAR_STOP)
       car_status
@@ -197,7 +197,7 @@ private
   # Elevator car is available for another request.
   def car_waiting
     @elevator_status[:car] = 'waiting'
-    msg "Car waiting"
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Car waiting")
   end
 
   # Discharge riders to destination floor.
@@ -214,13 +214,13 @@ private
       discharge_count += 1
       true
     end
-    msg "discharged #{discharge_count} on #{current_floor}" if discharge_count.positive?
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "discharged #{discharge_count} on #{current_floor}")
     discharge_count
   end
 
   def door_close
     if !@elevator_status[:door].eql? 'closed'
-      msg 'door closing', Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'door closing')
       @elevator_status[:door] = 'closed'
       advance_elevator_time(DOOR_WAIT_TIME)
       advance_elevator_time(DOOR_CLOSE)
@@ -230,7 +230,7 @@ private
 
   def door_open
     if !@elevator_status[:door].eql? 'open'
-      msg 'door opening', Logger::DEBUG
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'door opening')
       @elevator_status[:door] = 'open'
       advance_elevator_time(DOOR_OPEN)
       execute_command {door_status}
@@ -238,12 +238,7 @@ private
   end
 
   def door_status
-    msg "door #{@elevator_status[:door]}", Logger::DEBUG
-  end
-
-# TODO remove this method when all converted to Logger
-  def msg(text_msg, debug_level = Logger::DEBUG)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, debug_level, text_msg)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "door #{@elevator_status[:door]}")
   end
 
   # Are any riders getting off on specified floor?

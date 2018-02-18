@@ -4,16 +4,16 @@
 # The Controller monitors every elevator status and commands the elevator to move when a movement is determined to be necessary.
 class Controller
   LOGGER_MODULE = 'Controller'  # for console logger.
-  LOOP_DELAY    = 10.01          # (seconds) - sleep delay in controller loop.
+  LOOP_DELAY    = 1.01          # (seconds) - sleep delay in controller loop.
 
   @@next_elevator = nil
 
   def initialize(elevators, floors, logic)
-    @id         = 0           # Controller id.
-    @elevators  = elevators   # Elevators controlled by this Controller.
-    @floors     = floors      # Floors services by these elevators. For now, assume all elevators service all floors.
-    @logic      = logic       # Elevator control logic name.
-    @@next_elevator = 0       # Used for round-robin elevator selection logic.
+    @id         = 0          # Controller id.
+    @elevators  = elevators  # Elevators controlled by this Controller.
+    @floors     = floors     # Floors services by these elevators. For now, assume all elevators service all floors.
+    @logic      = logic      # Elevator control logic name.
+    @@next_elevator = 0      # Used for round-robin elevator selection logic.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
@@ -35,7 +35,7 @@ private
   # Returns elevator command, or nil if nothing to do.
   def create_request
     elevator = @elevators[0]
-    floor = @floors[1]
+    floor = @floors[2]
     {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
   end
 
