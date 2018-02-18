@@ -23,7 +23,7 @@ class Floor
   def accept_occupant(occupant)
     @@floor_semaphore.synchronize {
       @occupants << occupant
-      msg "Occupant list now: #{@occupants.length}", Logger::DEBUG
+      msg "occupant list now: #{@occupants.length}", Logger::DEBUG
     }
   end
 
@@ -48,8 +48,8 @@ class Floor
       old_occupant_count = @occupants.length
       old_waitlist_count = @waitlist.length
       @waitlist.delete_if { |passenger| yield(passenger) }
-      msg "Occupant list now: #{@occupants.length}", Logger::DEBUG if @occupants.length != old_occupant_count
-      msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG if @waitlist.length != old_waitlist_count
+      msg "occupant list now: #{@occupants.length}", Logger::DEBUG if @occupants.length != old_occupant_count
+      msg "waitlist now: #{@waitlist.length}", Logger::DEBUG if @waitlist.length != old_waitlist_count
     }
   end
 
@@ -85,8 +85,8 @@ private
         press_call_up
       end
       occupant.on_waitlist(occupant.enq_time)
-      msg "Occupant list now: #{@occupants.length}", Logger::DEBUG
-      msg "Waitlist now: #{@waitlist.length}", Logger::DEBUG
+      msg "occupant list now: #{@occupants.length}", Logger::DEBUG
+      msg "waitlist now: #{@waitlist.length}", Logger::DEBUG
   end
 
   def msg(text_msg, debug_level = Logger::INFO)

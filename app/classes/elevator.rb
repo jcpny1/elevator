@@ -50,8 +50,16 @@ class Elevator
     @elevator_status[:direction] == 'up'
   end
 
+  def has_riders?
+    @elevator_status[:riders][:count] > 0
+  end
+
   def stationary?
     @elevator_status[:direction] == '--'
+  end
+
+  def waiting?
+    @elevator_status[:car] == 'waiting'
   end
 
   # Runtime statistics
@@ -67,11 +75,14 @@ class Elevator
   #  4. If not holding, pickup any passengers going in same direction then proceed to next destination.
   #  5. Goto step 1.
   def run
+    destination = Floor::GROUND_FLOOR
     while 1
-      request = @command_q.deq
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Requst received: #{request}, Current location: #{@elevator_status[:location]}")
-      destination = process_controller_command(request)
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Next destination: #{destination}, Current location: #{@elevator_status[:location]}")
+      if !@command_q.length.zero?
+        request = @command_q.deq
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "requst received: #{request}, current location: #{@elevator_status[:location]}")
+        destination = process_controller_command(request)
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current location: #{@elevator_status[:location]}")
+      end
       case destination <=> @elevator_status[:location]
       when -1
         execute_command { car_move(-1) }
@@ -104,59 +115,6 @@ private
     pickup_passengers
     execute_command { door_close }
   end
-
-  # Yields to a code block once simulation time catches up to elevator time.
-  def execute_command
-    sleep LOOP_DELAY until Simulator::time >= @elevator_status[:time]
-    yield
-  end
-
-  # Pickup passengers from floor's wait list.
-  def pickup_passengers
-    pickup_count = 0
-    @floors[current_floor].leave_waitlist do |passenger|
-      if ((going_up? && (passenger.destination > current_floor)) || (going_down? && (passenger.destination < current_floor))) && !car_full?
-        @elevator_status[:riders][:count]  += 1
-        @elevator_status[:riders][:weight] += passenger.weight
-        @elevator_status[:riders][:occupants] << passenger
-        @elevator_status[:stops][passenger.destination] = true
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:destinations].join(', ')}")
-        passenger.on_elevator(Simulator::time)
-        advance_elevator_time(LOAD_TIME)
-        pickup_count += 1
-        true
-      end
-    end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "picked up #{pickup_count} on #{current_floor}")
-    pickup_count
-  end
-
-  # Process controller request.
-  def process_controller_command(request)
-    case request[:cmd]
-    when 'GOTO'
-      process_goto_request(request)
-    when 'END'
-    else
-      raise "Invalid command: #{request[:cmd]}"
-    end
-  end
-
-  # Handle GOTO command.
-  def process_goto_request(request)
-    request_floor = request[:floor_idx].to_i
-    @elevator_status[:stops][request_floor] = true
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:stops].join(', ')}")
-    @elevator_status[:direction] = request_floor < current_floor ? 'down' : 'up'
-    execute_command { car_departure }
-    request_floor
-  end
-
-
-
-
-
-  # @elevator_status[:direction] = @elevator_status[:destinations][current_floor]
 
   # Move car floor_count floors. (-# = down, +# = up.)
   def car_move(floor_count)
@@ -196,8 +154,8 @@ private
 
   # Elevator car is available for another request.
   def car_waiting
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "car waiting") if !(@elevator_status[:car] == 'waiting')
     @elevator_status[:car] = 'waiting'
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Car waiting")
   end
 
   # Discharge riders to destination floor.
@@ -214,7 +172,7 @@ private
       discharge_count += 1
       true
     end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "discharged #{discharge_count} on #{current_floor}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "discharged #{discharge_count} on #{current_floor}") if !discharge_count.zero?
     discharge_count
   end
 
@@ -241,9 +199,10 @@ private
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "door #{@elevator_status[:door]}")
   end
 
-  # Are any riders getting off on specified floor?
-  def discharge_on?(floor)
-    @elevator_status[:riders][:occupants].any? { |occupant| occupant.destination == floor }
+  # Yields to a code block once simulation time catches up to elevator time.
+  def execute_command
+    sleep LOOP_DELAY until Simulator::time >= @elevator_status[:time]
+    yield
   end
 
   # Create an elevator status object. (Will have multithreaded read access.)
@@ -253,7 +212,7 @@ private
     #   'moving'  = car is moving to a floor.
     #   'stopped' = car is stopped at a floor.
     #   'waiting' = car is waiting for instructions.
-    status[:car] = 'waiting'  # car motion.
+    status[:car] = 'stopped'  # car motion.
   # Direction values:
     #   'up' = car is heading up.
     #   'down' = car is heading down.
@@ -273,8 +232,44 @@ private
     status
   end
 
-  def no_destinations
-    !@elevator_status[:destinations].any? { |d| !d.nil? }
+  # Pickup passengers from floor's wait list.
+  def pickup_passengers
+    pickup_count = 0
+    @floors[current_floor].leave_waitlist do |passenger|
+      if ((going_up? && (passenger.destination > current_floor)) || (going_down? && (passenger.destination < current_floor))) && !car_full?
+        @elevator_status[:riders][:count]  += 1
+        @elevator_status[:riders][:weight] += passenger.weight
+        @elevator_status[:riders][:occupants] << passenger
+        @elevator_status[:stops][passenger.destination] = true
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:destinations].join(', ')}")
+        passenger.on_elevator(Simulator::time)
+        advance_elevator_time(LOAD_TIME)
+        pickup_count += 1
+        true
+      end
+    end
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "picked up #{pickup_count} on #{current_floor}") if !pickup_count.zero?
+    pickup_count
   end
 
+  # Process controller request.
+  def process_controller_command(request)
+    case request[:cmd]
+    when 'GOTO'
+      process_goto_request(request)
+    when 'END'
+    else
+      raise "Invalid command: #{request[:cmd]}"
+    end
+  end
+
+  # Handle GOTO command.
+  def process_goto_request(request)
+    request_floor = request[:floor_idx].to_i
+    @elevator_status[:stops][request_floor] = true
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Destinations: #{@elevator_status[:stops].join(', ')}")
+    @elevator_status[:direction] = request_floor < current_floor ? 'down' : 'up'
+    execute_command { car_departure }
+    request_floor
+  end
 end
