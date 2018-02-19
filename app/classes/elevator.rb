@@ -167,19 +167,15 @@ private
   # Elevator car arrives at a floor.
   def car_arrival
     execute_command { door_open }
-    discharge_passengers
     cancel_stop(current_floor)
+    discharge_passengers
   end
 
   # Elevator car departs a floor.
   def car_departure
-    pickup_passengers
+    pickup_count = pickup_passengers
+    going_down? ? @floors[current_floor].cancel_call_down : @floors[current_floor].cancel_call_up if !pickup_count.zero?
     execute_command { door_close }
-    if going_down?
-      @floors[current_floor].cancel_call_down
-    else
-      @floors[current_floor].cancel_call_up
-    end
   end
 
   # Move car floor_count floors. (-# = down, +# = up.)
@@ -299,6 +295,7 @@ private
   end
 
   # Pickup passengers from floor's wait list.
+  # Returns number of passengers picked up.
   def pickup_passengers
     pickup_count = 0
     @floors[current_floor].leave_waitlist do |passenger|

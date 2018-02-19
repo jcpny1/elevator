@@ -1,7 +1,7 @@
 # A floor of a building.
 # Each floor contain an up and a down elevator call button and a wait queue for arriving passengers.
 class Floor
-  
+
   # > > > DELETE ALL ATTR_READERS
   attr_reader :call_down, :call_up, :id, :occupants, :waitlist
 
@@ -29,15 +29,19 @@ class Floor
 
   def cancel_call_down
   @@floor_semaphore.synchronize {
-    @call_down = false
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel call down on #{@id}")
+    if @call_down
+      @call_down = false
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel call down on #{@id}")
+    end
   }
   end
 
   def cancel_call_up
   @@floor_semaphore.synchronize {
-    @call_up = false
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel call up on #{@id}")
+    if @call_up
+      @call_up = false
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel call up on #{@id}")
+    end
   }
   end
 

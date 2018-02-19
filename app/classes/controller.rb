@@ -46,9 +46,9 @@ private
         rider = elevator[:car].elevator_status[:riders][:occupants][0]
         destination = rider.destination
       else
-        destination = e.next_stop
+        destination = elevator[:car].next_stop
       end
-      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination}
+      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination} if !destination.nil?
     else
       # 2. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
       elevator = elavator_waiting_at_floor_with_waiters
