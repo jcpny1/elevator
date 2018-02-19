@@ -22,7 +22,7 @@ class Controller
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request)
         elevator = @elevators[request[:elevator_idx]]
         elevator[:car].command_q << request
-        elevator[:car].status = 'processing'
+        elevator[:car].status = 'moving'
       end
       sleep LOOP_DELAY
     end
@@ -51,6 +51,8 @@ private
       request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination} if !destination.nil?
     else
       # 2. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
+
+
       elevator = elavator_waiting_at_floor_with_waiters
       if !elevator.nil?
         current_floor_idx = elevator[:car].current_floor

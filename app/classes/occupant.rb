@@ -44,8 +44,8 @@ class Occupant < Person
   end
 
   # Boarding elevator. Calculate wait time.
-  def on_elevator(on_elevator_time)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on elevator")
+  def on_elevator(on_elevator_time, elevator_id)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on elevator #{elevator_id}")
     @enq = false
     @on_elevator_time = on_elevator_time
     wait_time = on_elevator_time - @on_waitlist_time
@@ -55,7 +55,7 @@ class Occupant < Person
 
   # End trip. Calculate trip time.
   def on_floor(on_floor_time)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on floor")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on floor #{destination}")
     ride_time = on_floor_time - @on_elevator_time
     @total_ride_time += ride_time
     @max_ride_time = [ride_time, @max_ride_time].max
@@ -67,7 +67,7 @@ class Occupant < Person
 
   # Begin trip.
   def on_waitlist(on_waitlist_time)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on waitlist")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on waitlist floor #{destination}")
     @on_waitlist_time = on_waitlist_time
   end
 

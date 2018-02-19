@@ -74,7 +74,7 @@ class Elevator
       stop = next_stop_up
       raise "going up without a destination" if stop.nil?
     else
-      # waiting or stopped.
+      # waiting.
       # return closest stop in any direction.
       down_stop = next_stop_down
       up_stop = next_stop_up
@@ -101,8 +101,6 @@ class Elevator
     @elevator_status[:stops].slice(current_floor + 1...@elevator_status[:stops].length).index { |stop| stop }
   end
 
-
-
   # Main logic:
   #  1. Stop at floor
   #  2. Discharge any passengers for this floor.
@@ -113,22 +111,25 @@ class Elevator
   def run
     destination = Floor::GROUND_FLOOR
     while true
-      if !@command_q.length.zero?
+
+      if waiting?
         request = @command_q.deq
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "requst received: #{request}, current location: #{@elevator_status[:location]}")
         destination = process_controller_command(request)
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current location: #{@elevator_status[:location]}")
       end
+
       case destination <=> @elevator_status[:location]
       when -1
         execute_command { car_move(-1) }
       when 1
         execute_command { car_move( 1) }
       when 0
-        if !waiting?  # then we are just arriving at this floor. (To prevent duplicate arrivals in sim loop.)
+        if !waiting?
+          status = 'executing'
           execute_command { car_stop    }
           execute_command { car_arrival }
-          execute_command { car_waiting }
+          status = 'waiting'
         end
       end
       sleep LOOP_DELAY
@@ -148,7 +149,7 @@ class Elevator
   end
 
   def waiting?
-    @elevator_status[:car] == 'waiting'
+    status == 'waiting'
   end
 
 private
@@ -188,36 +189,20 @@ private
   end
 
   def car_start
-    if !@elevator_status[:car].eql? 'moving'
-      execute_command { door_close }
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "starting #{@elevator_status[:direction]}")
-      @elevator_status[:car] = 'moving'
-      advance_elevator_time(CAR_START)
-      car_status
-    end
+    execute_command { door_close }
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "starting #{@elevator_status[:direction]}")
+    advance_elevator_time(CAR_START)
+    car_status
   end
 
   def car_status
-    if !@elevator_status[:car].eql? 'moving'
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@elevator_status[:car]} on #{@elevator_status[:location]}")
-    else
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@elevator_status[:car]} #{@elevator_status[:direction]}")
-    end
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{status} on #{@elevator_status[:location]} direction #{@elevator_status[:direction]}")
   end
 
   def car_stop
-    if @elevator_status[:car].eql? 'moving'
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "stopping on #{@elevator_status[:location]}")
-      @elevator_status[:car] = 'stopped'
-      advance_elevator_time(CAR_STOP)
-      car_status
-    end
-  end
-
-  # Elevator car is available for another request.
-  def car_waiting
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "car waiting") if !(@elevator_status[:car] == 'waiting')
-    @elevator_status[:car] = 'waiting'
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "stopping on #{@elevator_status[:location]}")
+    advance_elevator_time(CAR_STOP)
+    car_status
   end
 
   # Discharge riders to destination floor.
@@ -272,10 +257,9 @@ private
     status = {}
     # Car values:
     #   'executing' = car is processing a command.
-    #   'moving'    = car is moving to a floor.
-    #   'stopped'   = car is stopped at a floor.
+    #   'moving'    = car is travaelling.
     #   'waiting'   = car is waiting for instructions.
-    status[:car] = 'stopped'  # car motion.
+    status[:car] = 'waiting'  # car status.
   # Direction values:
     #   'up' = car is heading up.
     #   'down' = car is heading down.
@@ -304,7 +288,7 @@ private
         @elevator_status[:riders][:weight] += passenger.weight
         @elevator_status[:riders][:occupants] << passenger
         set_stop(passenger.destination)
-        passenger.on_elevator(Simulator::time)
+        passenger.on_elevator(Simulator::time, @id)
         advance_elevator_time(LOAD_TIME)
         pickup_count += 1
         true
