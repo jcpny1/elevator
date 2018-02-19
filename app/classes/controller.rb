@@ -22,7 +22,7 @@ class Controller
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request)
         elevator = @elevators[request[:elevator_idx]]
         elevator[:car].command_q << request
-        elevator[:car].status = 'moving'
+        elevator[:car].status = 'executing'
       end
       sleep LOOP_DELAY
     end
@@ -35,9 +35,7 @@ private
   def create_request
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG_2, 'create request')
     request = nil
-
-### USE ELEVATOR'S STOP[_BUTTONS] ARRAY
-
+    #
     # 1. If waiting elevator with riders then
     #      Send elevator to closest elevator stop in direction of travel.
     elevator = elevator_waiting_with_riders
@@ -50,15 +48,16 @@ private
       end
       request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination} if !destination.nil?
     else
+      #
       # 2. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
-
-
+      #
       elevator = elavator_waiting_at_floor_with_waiters
       if !elevator.nil?
         current_floor_idx = elevator[:car].current_floor
         destination_floor_idx = @floors[current_floor_idx].waitlist[0].destination
         request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination_floor_idx}
       else
+        #
         # 3. If floor with a waiter then
         #      If waiting elevator then
         #        Send elevator to waiter's floor.

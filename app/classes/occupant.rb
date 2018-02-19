@@ -66,8 +66,8 @@ class Occupant < Person
   end
 
   # Begin trip.
-  def on_waitlist(on_waitlist_time)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on waitlist floor #{destination}")
+  def on_waitlist(on_waitlist_time, floor)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "on waitlist floor #{floor} destination #{destination}")
     @on_waitlist_time = on_waitlist_time
   end
 

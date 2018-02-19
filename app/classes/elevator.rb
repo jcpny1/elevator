@@ -43,6 +43,10 @@ class Elevator
     @elevator_status[:location]
   end
 
+  def direction
+    @elevator_status[:direction]
+  end
+
   def going_down?
     @elevator_status[:direction] == 'down'
   end
@@ -111,25 +115,26 @@ class Elevator
   def run
     destination = Floor::GROUND_FLOOR
     while true
+      request = @command_q.deq
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "requst received: #{request}, current location: #{@elevator_status[:location]}")
+      destination = process_controller_command(request)
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current location: #{@elevator_status[:location]}")
 
-      if waiting?
-        request = @command_q.deq
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "requst received: #{request}, current location: #{@elevator_status[:location]}")
-        destination = process_controller_command(request)
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current location: #{@elevator_status[:location]}")
-      end
-
-      case destination <=> @elevator_status[:location]
-      when -1
-        execute_command { car_move(-1) }
-      when 1
-        execute_command { car_move( 1) }
-      when 0
-        if !waiting?
-          status = 'executing'
+      while true
+        case current_floor <=> destination
+        when -1
+          execute_command { car_move( 1) }
+        when 1
+          execute_command { car_move(-1) }
+        when 0
           execute_command { car_stop    }
           execute_command { car_arrival }
-          status = 'waiting'
+          discharge_passengers
+          # TODO figure out why next line is not working.
+          # status = 'waiting'
+          @elevator_status[:car] = 'waiting'
+          Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@elevator_status[:car]}")
+          break
         end
       end
       sleep LOOP_DELAY
@@ -142,6 +147,7 @@ class Elevator
 
   def status=(s)
     @elevator_status[:car] = s
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{s}")
   end
 
   def stationary?
@@ -162,14 +168,13 @@ private
   # Clear stop request button for given floor.
   def cancel_stop(floor_idx)
     @elevator_status[:stops][floor_idx] = false
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "cancel_stop. stops: #{@elevator_status[:stops].join(', ')}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "clearing stop. stops: #{@elevator_status[:stops].join(', ')}")
   end
 
   # Elevator car arrives at a floor.
   def car_arrival
     execute_command { door_open }
     cancel_stop(current_floor)
-    discharge_passengers
   end
 
   # Elevator car departs a floor.
@@ -196,7 +201,7 @@ private
   end
 
   def car_status
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{status} on #{@elevator_status[:location]} direction #{@elevator_status[:direction]}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{status} floor #{current_floor} direction #{direction}")
   end
 
   def car_stop
@@ -206,6 +211,7 @@ private
   end
 
   # Discharge riders to destination floor.
+  # Returns number of passengers dicharged.
   def discharge_passengers
     discharge_count = 0
     floor = @floors[current_floor]
@@ -257,7 +263,6 @@ private
     status = {}
     # Car values:
     #   'executing' = car is processing a command.
-    #   'moving'    = car is travaelling.
     #   'waiting'   = car is waiting for instructions.
     status[:car] = 'waiting'  # car status.
   # Direction values:
@@ -265,11 +270,6 @@ private
     #   'down' = car is heading down.
     #   '--' = car is stationary.
     status[:direction] = '--'
-  # Destinations values:
-  #   'up' = call on floor on to go up.
-  #   'down' = call on floor to to down.
-  #   '--' = no call, discharge stop.
-  #   nil = no call, no stop.
     status[:door]      = 'closed'    # door status.
     status[:location]  = 1           # floor.
     status[:riders]    = {count: 0, weight: 0, occupants: []}  # occupants
@@ -321,6 +321,6 @@ private
   # Set stop request button for given floor.
   def set_stop(floor_idx)
     @elevator_status[:stops][floor_idx] = true
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "set_stop. stops: #{@elevator_status[:stops].join(', ')}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "adding stop. stops: #{@elevator_status[:stops].join(', ')}")
   end
 end
