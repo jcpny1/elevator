@@ -44,7 +44,7 @@ private
         rider = elevator[:car].elevator_status[:riders][:occupants][0]
         destination = rider.destination
       else
-        destination = elevator[:car].next_stop
+        destination = next_stop(elevator[:car].stops, elevator[:car].current_floor )
       end
       request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination} if !destination.nil?
     else
@@ -102,6 +102,42 @@ private
 
  def next_elevator
    @elevators.find { |e| e[:car].status == 'waiting' }
+ end
+
+ # Return elevator's next stop.
+ def next_stop(stops, current_floor)
+   stop = nil
+   if going_down?
+     stop = next_stop_down(stops, current_floor)
+     raise "going down without a destination" if stop.nil?
+   elsif going_up?
+     stop = next_stop_up(stops, current_floor)
+     raise "going up without a destination" if stop.nil?
+   else
+     # waiting, return closest stop in any direction.
+     down_stop = next_stop_down(stops, current_floor)
+     up_stop = next_stop_up(stops, current_floor)
+
+     if down_stop.nil?
+       stop = up_stop
+     elsif up_stop.nil?
+       stop = down_stop
+     else
+       # for now, we'll bias equidistant stops to the up direction.
+       # we may want to adjust that with time-of-day or number of riders optimizations.
+       dn_stop_diff = current_floor - dn_stop
+       up_stop_diff = up_stop - current_floor
+       stop = dn_stop_diff < up_stop_diff ? dn_stop : up_stop
+     end
+   end
+ end
+
+ def next_stop_down(stops, current_floor)
+   stops.slice(0...current_floor).rindex { |stop| stop }
+ end
+
+ def next_stop_up(stops, current_floor)
+   stops.slice(current_floor + 1...stops.length).index { |stop| stop }
  end
 
 

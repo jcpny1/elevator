@@ -35,8 +35,7 @@ class Elevator
   # For coding simplicity, we'll allow boarding until car is overweight.
   # In the real world, we would board. Then once overweight, offboard until under weight.
   def car_full?
-    @elevator_status[:riders][:count] == PASSENGER_LIMIT ||
-    @elevator_status[:riders][:weight] >= WEIGHT_LIMIT
+    @elevator_status[:riders][:count] == PASSENGER_LIMIT || @elevator_status[:riders][:weight] >= WEIGHT_LIMIT
   end
 
   def current_floor
@@ -62,47 +61,6 @@ class Elevator
   # Reset runtime statistics
   def init_stats
     @elevator_status[:distance] = 0.0  # cumulative distance traveled.
-  end
-
-  # Return elevator's next stop.
-  def next_stop
-    stop = nil
-    if going_down?
-      # return next true value in stops list below current stop.
-      # if none, error.
-      stop = next_stop_down
-      raise "going down without a destination" if stop.nil?
-    elsif going_up?
-      # return next true value in stops list above current stop.
-      # if none, error.
-      stop = next_stop_up
-      raise "going up without a destination" if stop.nil?
-    else
-      # waiting.
-      # return closest stop in any direction.
-      down_stop = next_stop_down
-      up_stop = next_stop_up
-
-      if down_stop.nil?
-        stop = up_stop
-      elsif up_stop.nil?
-        stop = down_stop
-      else
-        # for now, we'll bias equidistant stops to the up direction.
-        # we may want to adjust that with time-of-day optimizations.
-        dn_stop_diff = current_floor - dn_stop
-        up_stop_diff = up_stop - current_floor
-        stop = dn_stop_diff < up_stop_diff ? dn_stop : up_stop
-      end
-    end
-  end
-
-  def next_stop_down
-    @elevator_status[:stops].slice(0...current_floor).rindex { |stop| stop }
-  end
-
-  def next_stop_up
-    @elevator_status[:stops].slice(current_floor + 1...@elevator_status[:stops].length).index { |stop| stop }
   end
 
   # Main logic:
@@ -152,6 +110,11 @@ class Elevator
 
   def stationary?
     @elevator_status[:direction] == '--'
+  end
+
+  # Return list of elevator stops.
+  def stops
+    @elevator_status[:stops]
   end
 
   def waiting?
