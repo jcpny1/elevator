@@ -9,7 +9,7 @@ class Elevator
   LOGGER_MODULE = 'Elevator'  # for console logger.
   LOOP_DELAY    = 0.1         # (seconds) - sleep delay in main loop.
 
-  # Elevator car parameters:
+  # Elevator parameters:
   CAR_SPEED       = 4.0   # in feet per second.
   PASSENGER_LIMIT = 10    # in bodies.
   WEIGHT_LIMIT    = 2000  # in pounds.
@@ -26,34 +26,38 @@ class Elevator
   def initialize(id, command_q, floors)
     @id        = id               # Elevator id.
     @command_q = command_q        # to receive requests from the controller.
-    @direction = '--'             # car heading = up, down, --
+    @direction = 'none'           # heading = up, down, or none.
     @distance  = 0.0              # cumulative distance traveled.
-    @door      = 'closed'         # door status = open, opening, closed, closing.
+    @door      = 'closed'         # door status = open or closed.
     @floors    = floors           # array of Floor objects.
     @floor_idx = 1                # elevator location.
     @riders    = {count: 0,       # # of elevator occupants,
                   weight: 0.0,    # sum of occupants weight,
                   occupants: []}  # occupants of elevator.
-    @status    = 'waiting'        # elevator status = executing (procesing a controller command) or waiting (waiting for a command).
+    @status    = 'waiting'        # elevator status = executing (a controller command) or waiting (for a command).
     @stops     = Array.new(@floors.length, false)  # stop-at-floor indicator, true or false.
     @time      = 0.0              # elevator time, aka next available time.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
+  # Is elevator full?
   # For coding simplicity, we'll allow boarding until car is overweight.
   # In the real world, we would board. Then once overweight, offboard until under weight.
-  def car_full?
+  def elevator_full?
     @riders[:count] == PASSENGER_LIMIT || @riders[:weight] >= WEIGHT_LIMIT
   end
 
+  # Is elevator going down?
   def going_down?
     @direction == 'down'
   end
 
+  # Is elevator going up?
   def going_up?
     @direction == 'up'
   end
 
+  # Does elevator have riders?
   def has_riders?
     !@riders[:count].zero?
   end
@@ -63,6 +67,7 @@ class Elevator
     @distance = 0.0
   end
 
+  # Return elevator occupant list.
   def occupants
     @riders[:occupants]
   end
@@ -102,21 +107,23 @@ class Elevator
     end
   end
 
+  # Check for error conditions.
   def sanity_check
     # Don't travel below ground floor or above top floor.
     raise "Elevator #{@id} out-of-bounds on floor #{@floor_idx}}" if (@floor_idx < Floor::GROUND_FLOOR || @floor_idx >= @floors.length)
-    # Don't want an elevator with riders going up AND riders going down.
+    # Don't have riders going up AND riders going down.
     rider_going_down = false
     rider_going_up = false
     occupants.each do |occupant|
       rider_going_down ||= occupant.destination < @floor_idx
       rider_going_down ||= occupant.destination > @floor_idx
     end
-    raise "Elevator #{@id} has riders for oppostite direction}" if (rider_going_down && rider_going_up)
+    raise "Elevator #{@id} has riders in oppostite directions}" if (rider_going_down && rider_going_up)
   end
 
+  # Does elevator have no direction?
   def stationary?
-    @direction == '--'
+    @direction == 'none'
   end
 
   # Alter elevator status.
@@ -131,7 +138,7 @@ class Elevator
 
 private
 
-  # Advance the time the given amount.
+  # Advance elevator time the given amount.
   def advance_elevator_time(num)
     @time += num
   end
@@ -154,7 +161,7 @@ private
     execute_command { door_close }
   end
 
-  # Move car floor_count floors. (-# = down, +# = up.)
+  # Move car floor_count floors. (+=up/-=down)
   def car_move(floor_count)
     @direction = floor_count.negative? ? 'down' : 'up'
     @floor_idx += floor_count
@@ -163,6 +170,7 @@ private
     advance_elevator_time(floor_count.abs * (Floor::height/CAR_SPEED))
   end
 
+  # Sart car movement.
   def car_start
     execute_command { door_close }
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "starting #{@direction}")
@@ -170,10 +178,12 @@ private
     car_status
   end
 
+  # Display car status.
   def car_status
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@status} direction #{@direction} floor #{@floor_idx}")
   end
 
+  # Stop car movement.
   def car_stop
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "stopping on #{@floor_idx}")
     advance_elevator_time(CAR_STOP)
@@ -181,7 +191,7 @@ private
   end
 
   # Discharge riders to destination floor.
-  # Returns number of passengers dicharged.
+  # Return number of passengers discharged.
   def discharge_passengers
     discharge_count = 0
     floor = @floors[@floor_idx]
@@ -199,6 +209,7 @@ private
     discharge_count
   end
 
+  # Close car doors.
   def door_close
     if !@door.eql? 'closed'
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'door closing')
@@ -208,6 +219,7 @@ private
     end
   end
 
+  # Open car doors.
   def door_open
     if !@door.eql? 'open'
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'door opening')
@@ -217,22 +229,23 @@ private
     end
   end
 
+  # Display door status.
   def door_status
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "door #{@door}")
   end
 
-  # Yields to a code block once simulation time catches up to elevator time.
+  # Yield to a code block once simulation time catches up to elevator time.
   def execute_command
     sleep LOOP_DELAY until Simulator::time >= @time
     yield
   end
 
   # Pickup passengers from floor's wait list.
-  # Returns number of passengers picked up.
+  # Return number of passengers picked up.
   def pickup_passengers
     pickup_count = 0
     @floors[@floor_idx].leave_waitlist do |passenger|
-      if ((going_up? && (passenger.destination > @floor_idx)) || (going_down? && (passenger.destination < @floor_idx))) && !car_full?
+      if ((going_up? && (passenger.destination > @floor_idx)) || (going_down? && (passenger.destination < @floor_idx))) && !elevator_full?
         @riders[:count]  += 1
         @riders[:weight] += passenger.weight
         occupants << passenger

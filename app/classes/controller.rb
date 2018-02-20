@@ -15,6 +15,9 @@ class Controller
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
+  # Main logic:
+  #  1. Create an elevator request, if possible.
+  #  2. Goto step 1.
   def run
     while true
       request = create_request
@@ -31,7 +34,7 @@ class Controller
 private
 
   # Create elevator movement requests given current floor and elevator states.
-  # Returns elevator command, or nil if nothing to do.
+  # Return elevator command, or nil if nothing to do.
   def create_request
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG_2, 'create request')
     request = nil
@@ -51,7 +54,7 @@ private
       #
       # 2. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
       #
-      elevator = elavator_waiting_at_floor_with_waiters
+      elevator = elevator_waiting_at_floor_with_waiters
       if !elevator.nil?
         floor_idx = elevator[:car].floor_idx
         destination_floor_idx = @floors[floor_idx].waitlist[0].destination
@@ -71,6 +74,8 @@ private
     request
   end
 
+  # Return a waiting elevator.
+  # Optionally, on a specific floor.
   def elevator_waiting(floor_id=nil)
     if floor_id.nil?
       @elevators.find { |e| e[:car].waiting? }
@@ -79,10 +84,12 @@ private
     end
   end
 
-  def elavator_waiting_at_floor_with_waiters
+  # Return a waiting elevator on a floor with occupants waiting in the elevator lobby.
+  def elevator_waiting_at_floor_with_waiters
     @elevators.find { |e| e[:car].waiting? && !@floors[e[:car].floor_idx].has_waiters? }
   end
 
+  # Return a waiting elevator that has riders on board.
   def elevator_waiting_with_riders
     @elevators.find { |e| e[:car].waiting? && e[:car].has_riders? }
   end
@@ -92,6 +99,7 @@ private
     @logic == 'FCFS'
   end
 
+  # Return a floor that has occupants waiting elevator lobby.
   def floor_with_waiter
     @floors.find { |f| !f.has_waiters? }
   end
@@ -137,7 +145,7 @@ private
     elevator
   end
 
-  # Return nearest stop to current location.
+  # Return nearest scheduled stop to current location.
   def nearest_stop(stops, floor_idx)
     down_stop = next_stop_down(stops, floor_idx)
     up_stop = next_stop_up(stops, floor_idx)
@@ -171,34 +179,36 @@ private
    return nearest_stop(stops, floor_idx)
   end
 
+  # Return elevator's next stop in the down direction.
   def next_stop_down(stops, floor_idx)
    stops.slice(0...floor_idx).rindex { |stop| stop }
   end
 
+  # Return elevator's next stop in the up direction.
   def next_stop_up(stops, floor_idx)
    stop = stops.slice((floor_idx + 1)...stops.length).index { |s| s }
    stop += (floor_idx + 1) if !stop.nil?
   end
 
-  def select_elevator(request)
-    elevator = nil
-    case @logic
-    when 'FCFS'    # First Come, First Served
-      elevator = logic_fcfs(request)
-    when 'SSTF'    # Shortest Seek Time First
-      elevator = logic_sstf(request)
-    when 'SCAN'    # Elevator Algorithm
-    when 'L-SCAN'  # Look SCAN
-    when 'C-SCAN'  # Circular SCAN
-    when 'C-LOOK'  # Circular LOOK
-    else
-      raise "Invalid logic: #{@logic}"
-    end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Elevator #{elevator[:id]} selected")
-    elevator
-  end
-end
-
+#   def select_elevator(request)
+#     elevator = nil
+#     case @logic
+#     when 'FCFS'    # First Come, First Served
+#       elevator = logic_fcfs(request)
+#     when 'SSTF'    # Shortest Seek Time First
+#       elevator = logic_sstf(request)
+#     when 'SCAN'    # Elevator Algorithm
+#     when 'L-SCAN'  # Look SCAN
+#     when 'C-SCAN'  # Circular SCAN
+#     when 'C-LOOK'  # Circular LOOK
+#     else
+#       raise "Invalid logic: #{@logic}"
+#     end
+#     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "Elevator #{elevator[:id]} selected")
+#     elevator
+#   end
+# end
+#
 # def next_destination(destinations)
 #   destination = @elevator_status[:location]
 #   destination += 1
@@ -220,7 +230,7 @@ end
 #       destination = up_index + floor_idx
 #
 #       # If car is full, don't consider current floor as a destination (for pickups only).
-#       if car_full? && destination == floor_idx && !discharge_on?(floor_idx)
+#       if elevator_full? && destination == floor_idx && !discharge_on?(floor_idx)
 #         up_index = destinations.slice(floor_idx + 1...@elevator_status[:destinations].length).index { |destination| !destination.nil? }
 #         destination = up_index + floor_idx + 1 if !up_index.nil?
 #       end
@@ -236,12 +246,12 @@ end
 #       destination = down_index
 #
 #       # If car is full, don't consider current floor as a destination.
-#       if car_full? && destination == floor_idx
+#       if elevator_full? && destination == floor_idx
 #         down_index = destinations.slice(0...floor_idx).index { |destination| !destination.nil? }
 #         destination = down_index if !down_index.nil?
 #       end
 #     end
-#     @elevator_status[:direction] = '--' if down_index.nil?
+#     @elevator_status[:direction] = 'none' if down_index.nil?
 #   end
 #
 #   if stationary? || @elevator_status[:direction].nil?
@@ -276,7 +286,7 @@ end
 #   when -1
 #     'dn'
 #   when 0
-#     '--'
+#     'none'
 #   when 1
 #     'up'
 #   end

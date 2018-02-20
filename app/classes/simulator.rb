@@ -158,6 +158,7 @@ private
     end
   end
 
+  # Return current simulation time.
   def self.time
     @@sim_time
   end

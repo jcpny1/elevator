@@ -27,6 +27,7 @@ class Floor
     }
   end
 
+  # Turn off elevator lobby call down button.
   def cancel_call_down
   @@floor_semaphore.synchronize {
     if @call_down
@@ -36,6 +37,7 @@ class Floor
   }
   end
 
+  # Turn off elevator lobby call up button.
   def cancel_call_up
   @@floor_semaphore.synchronize {
     if @call_up
@@ -45,6 +47,7 @@ class Floor
   }
   end
 
+  # Does this floor have elevator lobby waiters?
   def has_waiters?
     waiters = false
     @@floor_semaphore.synchronize {
@@ -53,10 +56,12 @@ class Floor
     waiters
   end
 
+  # Return height of floor.
   def self.height
     FLOOR_HEIGHT
   end
 
+  # Take occupant off elevator lobby waitlist if supplied code block returns true.
   def leave_waitlist
     @@floor_semaphore.synchronize {
       old_occupant_count = @occupants.length
@@ -67,6 +72,7 @@ class Floor
     }
   end
 
+  # Remove occupant from floor list and place on wait list if it is time for occupant to board.
   def update_wait_queue
     @@floor_semaphore.synchronize {
       @occupants.delete_if do |occupant|
@@ -82,6 +88,7 @@ class Floor
 
 private
 
+  # Place occupant on elevator lobby wait list.
   def enter_waitlist(occupant)
       @waitlist << occupant
       case occupant.destination <=> @id
@@ -101,6 +108,7 @@ private
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, debug_level, text_msg)
   end
 
+  # Activate elevator lobby call down button.
   def press_call_down
     if !@call_down
       msg "call down"
@@ -108,6 +116,7 @@ private
     end
   end
 
+  # Activate elevator lobby call up button.
   def press_call_up
     if !@call_up
       msg "call up"
