@@ -4,7 +4,7 @@
 
 class Elevator
 
-  attr_reader :command_q, :elevator_status, :id
+  attr_reader :command_q, :id
 
   LOGGER_MODULE = 'Elevator'  # for console logger.
   LOOP_DELAY    = 0.1         # (seconds) - sleep delay in main loop.
@@ -35,7 +35,7 @@ class Elevator
   # For coding simplicity, we'll allow boarding until car is overweight.
   # In the real world, we would board. Then once overweight, offboard until under weight.
   def car_full?
-    @elevator_status[:riders][:count] == PASSENGER_LIMIT || @elevator_status[:riders][:weight] >= WEIGHT_LIMIT
+    riders[:count] == PASSENGER_LIMIT || riders[:weight] >= WEIGHT_LIMIT
   end
 
   def current_floor
@@ -44,6 +44,10 @@ class Elevator
 
   def direction
     @elevator_status[:direction]
+  end
+
+  def distance_traveled
+    @elevator_status[:distance]
   end
 
   def going_down?
@@ -55,12 +59,16 @@ class Elevator
   end
 
   def has_riders?
-    !@elevator_status[:riders][:count].zero?
+    !riders[:count].zero?
   end
 
   # Reset runtime statistics
   def init_stats
     @elevator_status[:distance] = 0.0  # cumulative distance traveled.
+  end
+
+  def occupants
+    @elevator_status[:riders][:occupants]
   end
 
   # Main logic:
@@ -178,12 +186,12 @@ private
   def discharge_passengers
     discharge_count = 0
     floor = @floors[current_floor]
-    @elevator_status[:riders][:occupants].delete_if do |passenger|
+    occupants.delete_if do |passenger|
       next if passenger.destination != floor.id
       passenger.on_floor(Simulator::time)
       floor.accept_occupant(passenger)
-      @elevator_status[:riders][:count]  -= 1
-      @elevator_status[:riders][:weight] -= passenger.weight
+      riders[:count]  -= 1
+      riders[:weight] -= passenger.weight
       advance_elevator_time(DISCHARGE_TIME)
       discharge_count += 1
       true
@@ -249,7 +257,7 @@ private
       if ((going_up? && (passenger.destination > current_floor)) || (going_down? && (passenger.destination < current_floor))) && !car_full?
         @elevator_status[:riders][:count]  += 1
         @elevator_status[:riders][:weight] += passenger.weight
-        @elevator_status[:riders][:occupants] << passenger
+        occupants << passenger
         set_stop(passenger.destination)
         passenger.on_elevator(Simulator::time, @id)
         advance_elevator_time(LOAD_TIME)
@@ -279,6 +287,10 @@ private
     @elevator_status[:direction] = request_floor < current_floor ? 'down' : 'up'
     execute_command { car_departure }
     request_floor
+  end
+
+  def riders
+    @elevator_status[:riders]
   end
 
   # Set stop request button for given floor.

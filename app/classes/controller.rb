@@ -41,7 +41,7 @@ private
     elevator = elevator_waiting_with_riders
     if !elevator.nil?
       if fcfs?
-        rider = elevator[:car].elevator_status[:riders][:occupants][0]
+        rider = elevator[:car].occupants[0]
         destination = rider.destination
       else
         destination = next_stop(elevator[:car].stops, elevator[:car].current_floor )

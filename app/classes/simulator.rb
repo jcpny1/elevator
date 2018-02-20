@@ -3,7 +3,7 @@
 class Simulator
 
   LOGGER_MODULE  = 'Simulator' # for console logger.
-  LOOP_DELAY     = 0.25        # (seconds) - sleep delay in simulation loop.
+  LOOP_DELAY     = 0.1         # (seconds) - sleep delay in simulation loop.
   LOOP_TIME_INCR = 1.0         # (seconds) - amount of simulated time to advance for each simulation loop.
   RNG_SEED       = 101         # for random number generation. Using a static seed value for repeatable simulation runs.
 
@@ -117,12 +117,12 @@ private
 
     total_distance = 0
     @elevators.each do |elevator|
-      distance = elevator[:car].elevator_status[:distance]
+      distance = elevator[:car].distance_traveled
       total_distance += distance
     end
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Elevator dx  : %5.1f" % total_distance)
     @elevators.each do |elevator|
-      distance = elevator[:car].elevator_status[:distance]
+      distance = elevator[:car].distance_traveled
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "    Elevator #{elevator[:id]} : %5.1f" % distance)
     end
   end
@@ -152,7 +152,7 @@ private
   def run_scenario
     while true
       any_waiters = update_wait_queues
-      any_riders = @elevators.any? { |elevator| !elevator[:car].elevator_status[:riders][:occupants].length.zero? }
+      any_riders = @elevators.any? { |elevator| elevator[:car].has_riders? }
       any_future_waiters = @occupants.any? { |occupant| occupant.enq_time >= Simulator::time }
       break if !(any_waiters || any_riders || any_future_waiters)
       sleep LOOP_DELAY
