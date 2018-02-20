@@ -115,14 +115,11 @@ private
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Max Wait Time: %5.1f" % max_wait_time)
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Max Trip Time: %5.1f" % max_trip_time)
 
-    total_distance = 0
-    @elevators.each do |elevator|
-      distance = elevator[:car].distance_traveled
-      total_distance += distance
-    end
+    total_distance = @elevators.reduce(0) { |sum, elevator| sum + elevator[:car].distance }
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Elevator dx  : %5.1f" % total_distance)
+
     @elevators.each do |elevator|
-      distance = elevator[:car].distance_traveled
+      distance = elevator[:car].distance
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "    Elevator #{elevator[:id]} : %5.1f" % distance)
     end
   end
