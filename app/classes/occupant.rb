@@ -5,7 +5,7 @@ require_relative 'person'
 # The success of an elevator algorithm will mostly depend on the user experience statistics gathered here.
 class Occupant < Person
 
-  attr_reader :destination, :enq_time, :max_trip_time, :max_wait_time, :total_trip_time, :total_wait_time, :trips
+  attr_reader :destination, :boarding_time, :max_trip_time, :max_wait_time, :total_trip_time, :total_wait_time, :trips
 
   LOGGER_MODULE = 'Occupant'  # for console logger.
 
@@ -15,9 +15,9 @@ class Occupant < Person
 
   def initialize(id, weight)
     super(id, weight)
-    @destination = 0    # the floor an occupant wishes to travel to.
-    @enq         = false # this occupant is waiting to enq at enq_time. To keep simulator from re-enqing once enq'd.
-    @enq_time    = 0.0  # the time at which an occupant will arrive at an elevator lobby in order to proceed to destination.
+    @destination   = 0     # the floor an occupant wishes to travel to.
+    @enq           = false # this occupant is waiting to enq at boarding_time. To keep simulator from re-enqing once enq'd.
+    @boarding_time = 0.0   # the time at which an occupant will arrive at an elevator lobby in order to proceed to destination.
     init_stats
     Logger::msg(Simulator::time, LOGGER_MODULE, id, Logger::DEBUG, 'created')
   end
@@ -25,7 +25,7 @@ class Occupant < Person
   # Setup trip data.
   def enq(destination, time)
     @destination = destination
-    @enq_time = time
+    @boarding_time = time
     @enq = true
   end
 
@@ -71,7 +71,8 @@ class Occupant < Person
     @on_waitlist_time = on_waitlist_time
   end
 
+  # Has the occupants onboard time been reached?
   def time_to_board?
-    @enq && @enq_time <= Simulator::time
+    @enq && @boarding_time <= Simulator::time
   end
 end

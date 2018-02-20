@@ -150,7 +150,7 @@ private
     while true
       any_waiters = update_wait_queues
       any_riders = @elevators.any? { |elevator| elevator[:car].has_riders? }
-      any_future_waiters = @occupants.any? { |occupant| occupant.enq_time >= Simulator::time }
+      any_future_waiters = @occupants.any? { |occupant| occupant.boarding_time >= Simulator::time }
       break if !(any_waiters || any_riders || any_future_waiters)
       sleep LOOP_DELAY
       @@sim_time += LOOP_TIME_INCR

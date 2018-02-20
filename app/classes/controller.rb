@@ -176,8 +176,8 @@ private
   end
 
   def next_stop_up(stops, floor_idx)
-   stop = stops.slice(floor_idx + 1...stops.length).index { |stop| stop }
-   stop += floor_idx + 1 if !stop.nil?
+   stop = stops.slice((floor_idx + 1)...stops.length).index { |s| s }
+   stop += (floor_idx + 1) if !stop.nil?
   end
 
   def select_elevator(request)

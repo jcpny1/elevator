@@ -1,6 +1,6 @@
 # A Console Logger.
 module Logger
-  
+
   # Modules:
   #   'Controller'
   #   'Elevator'
@@ -16,8 +16,9 @@ module Logger
   ERROR   = 5  # error message
   NONE    = 6  # no log messages
 
-  def self.info
-    INFO
+  # Is debug enabled?
+  def self.debug_on
+    @debug_level < INFO
   end
 
   # modules - specify a hash list of modules to report on, or '*' for all modules.
@@ -29,6 +30,7 @@ module Logger
     @all_modules = true if @modules.include?('*')
   end
 
+  # Output message to console.
   def self.msg(time, module_name, module_id, debug_level, msg_text)
     if (debug_level >= @debug_level) && (@all_modules || @module.include?(module_name))
       puts "T + %7.2f: #{module_name} #{module_id}: #{msg_text}" % time

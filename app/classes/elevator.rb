@@ -15,28 +15,28 @@ class Elevator
   WEIGHT_LIMIT    = 2000  # in pounds.
 
   # Elevator operation times (in seconds):
-  CAR_START      = 1.0
-  CAR_STOP       = 1.0
-  DOOR_CLOSE     = 2.0
-  DOOR_OPEN      = 2.0
-  DISCHARGE_TIME = 2.0
-  DOOR_WAIT_TIME = 3.0
-  LOAD_TIME      = 2.0
+  CAR_START      = 1.0  # time to go from stopped to moving.
+  CAR_STOP       = 1.0  # time to go from moving to stopped.
+  DOOR_CLOSE     = 2.0  # time for doors to close.
+  DOOR_OPEN      = 2.0  # time for doors to open.
+  DISCHARGE_TIME = 2.0  # time to offboard one passenger.
+  DOOR_WAIT_TIME = 3.0  # time doors stay open after last offboard or onboard.
+  LOAD_TIME      = 2.0  # time to onboard one passenger.
 
   def initialize(id, command_q, floors)
-    @id              = id                   # Elevator id.
-    @command_q       = command_q            # to receive requests from the controller.
-    @direction       = '--'                 # car heading = up, down, --
-    @distance        = 0.0                  # cumulative distance traveled.
-    @door            = 'closed'             # door status = open, opening, closed, closing.
-    @floors          = floors               # array of Floor objects.
-    @floor_idx       = 1                    # elevator location.
-    @riders          = {count: 0,           # # of elevator occupants,
-                        weight: 0.0,        # sum of occupants weight,
-                        occupants: []}      # occupants of elevator.
-    @status          = 'waiting'            # elevator status = executing (procesing a controller command), waiting (waiting for a command).
-    @stops           = Array.new(@floors.length, false)  # stop-at-floor indicator, true or false.
-    @time            = 0.0                  # elevator time, aka next available time.
+    @id        = id               # Elevator id.
+    @command_q = command_q        # to receive requests from the controller.
+    @direction = '--'             # car heading = up, down, --
+    @distance  = 0.0              # cumulative distance traveled.
+    @door      = 'closed'         # door status = open, opening, closed, closing.
+    @floors    = floors           # array of Floor objects.
+    @floor_idx = 1                # elevator location.
+    @riders    = {count: 0,       # # of elevator occupants,
+                  weight: 0.0,    # sum of occupants weight,
+                  occupants: []}  # occupants of elevator.
+    @status    = 'waiting'        # elevator status = executing (procesing a controller command) or waiting (waiting for a command).
+    @stops     = Array.new(@floors.length, false)  # stop-at-floor indicator, true or false.
+    @time      = 0.0              # elevator time, aka next available time.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
@@ -68,12 +68,13 @@ class Elevator
   end
 
   # Main logic:
-  #  1. Stop at floor
+  #  1. Stop at destination floor.
   #  2. Discharge any passengers for this floor.
   #  3. Notify controller request complete.
-  #  3. Get next destination (or hold command) from contoller.
-  #  4. If not holding, pickup any passengers going in same direction then proceed to next destination.
-  #  5. Goto step 1.
+  #  3. Wait for next destination floor from Controller.
+  #  4. Pickup any passengers going in same direction as next destination floor.
+  #  5. Proceed to next destination floor.
+  #  6. Goto step 1.
   def run
     destination = Floor::GROUND_FLOOR
     while true
@@ -81,7 +82,6 @@ class Elevator
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "request received: #{request}, current floor: #{@floor_idx}")
       destination = process_controller_command(request)
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current floor: #{@floor_idx}")
-
       while true
         case @floor_idx <=> destination
         when -1
@@ -92,15 +92,27 @@ class Elevator
           execute_command { car_stop    }
           execute_command { car_arrival }
           discharge_passengers
-          # TODO figure out why next line is not working.
-          # status = 'waiting'
           @status = 'waiting'
           Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@status}")
           break
         end
       end
+      sanity_check if Logger::debug_on
       sleep LOOP_DELAY
     end
+  end
+
+  def sanity_check
+    # Don't travel below ground floor or above top floor.
+    raise "Elevator #{@id} out-of-bounds on floor #{@floor_idx}}" if (@floor_idx < Floor::GROUND_FLOOR || @floor_idx >= @floors.length)
+    # Don't want an elevator with riders going up AND riders going down.
+    rider_going_down = false
+    rider_going_up = false
+    occupants.each do |occupant|
+      rider_going_down ||= occupant.destination < @floor_idx
+      rider_going_down ||= occupant.destination > @floor_idx
+    end
+    raise "Elevator #{@id} has riders for oppostite direction}" if (rider_going_down && rider_going_up)
   end
 
   def stationary?
@@ -138,8 +150,7 @@ private
 
   # Elevator car departs a floor.
   def car_departure
-    pickup_count = pickup_passengers
-    going_down? ? @floors[@floor_idx].cancel_call_down : @floors[@floor_idx].cancel_call_up if !pickup_count.zero?
+    (going_down? ? @floors[@floor_idx].cancel_call_down : @floors[@floor_idx].cancel_call_up) if !pickup_passengers.zero?
     execute_command { door_close }
   end
 
@@ -192,7 +203,6 @@ private
     if !@door.eql? 'closed'
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'door closing')
       @door = 'closed'
-      advance_elevator_time(DOOR_WAIT_TIME)
       advance_elevator_time(DOOR_CLOSE)
       execute_command {door_status}
     end
@@ -233,6 +243,7 @@ private
         true
       end
     end
+    advance_elevator_time(DOOR_WAIT_TIME)
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "picked up #{pickup_count} on #{@floor_idx}") if !pickup_count.zero?
     pickup_count
   end
