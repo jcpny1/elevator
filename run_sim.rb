@@ -25,7 +25,7 @@ require_relative 'app/classes/simulator'
 sim_runs = []
 # sim_runs << {name: 'testing 1', logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   1, debug_level: Logger::DEBUG}
 # sim_runs << {name: 'testing 2', logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   2, debug_level: Logger::DEBUG}
-sim_runs << {name: 'simple 1',  logic:'FCFS', modifiers: {}, floors: 4, elevators:  1, occupants:   40, debug_level: Logger::INFO}
+sim_runs << {name: 'simple 1',  logic:'SSTF', modifiers: {}, floors: 4, elevators:  1, occupants:   40, debug_level: Logger::INFO}
 # sim_runs << {name: 'simple 2',  logic:'FCFS', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
 # sim_runs << {name: 'smarts 1',  logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
 # sim_runs << {name: 'smarts 2',  logic:'SSTF', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}

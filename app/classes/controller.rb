@@ -73,7 +73,7 @@ private
             request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '3A'} if !floor.nil?
           elsif @logic == 'SSTF'
             # 3B. Find closest floor with waiters in either direction.
-            floor = floor_with_nearest_waiter
+            floor = floor_with_nearest_waiter(elevator[:car].floor_idx)
             request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '3B'} if !floor.nil?
           end
         end
@@ -102,9 +102,38 @@ private
     @elevators.find { |e| e[:car].waiting? && e[:car].has_riders? }
   end
 
-  # Of all floors with waiters, return floor that has the earliest waiter.
+  # Return floor that has the earliest waiter.
   def floor_with_earliest_waiter
-    @floors.find { |f| f.has_waiters? }
+    earliest_floor = nil
+    earliest_wait_time = Simulator::time + 1.0
+    @floors.find_all { |f| f.has_waiters? }.each do |floor|
+      if floor.waitlist[0].on_waitlist_time < earliest_wait_time
+        earliest_wait_time = floor.waitlist[0].on_waitlist_time
+        earliest_floor = floor
+      end
+    end
+    earliest_floor
+  end
+
+  # Return floor of waiter nearest to given floor in any direction.
+  def floor_with_nearest_waiter(floor_idx)
+    waiter_floors = @floors.find_all { |f| f.has_waiters? }.sort { |floor1, floor2| floor1.id <=> floor2.id }
+    down_floor_idx = waiter_floors.rindex { |floor| floor.id < floor_idx }
+    down_floor = down_floor_idx.nil? ? nil : waiter_floors[down_floor_idx]
+    up_floor_idx = waiter_floors.index { |floor| floor.id > floor_idx }
+    up_floor = up_floor_idx.nil? ? nil : waiter_floors[up_floor_idx]
+# binding.pry if (down_floor_idx == 0 || up_floor_idx == 0)
+    if down_floor.nil?
+      up_floor
+    elsif up_floor.nil?
+      down_floor
+    else # we have waiters above and below.
+      # TODO for now, we'll bias equidistant waiters to the up direction. we may want to adjust that with time-of-day or number of riders optimizations.
+      down_floor_diff = floor_idx - down_floor.id
+      up_floor_diff = up_floor.id - floor_idx
+      down_floor_diff < up_floor_diff ? down_floor : up_floor
+    end
+
   end
 
   def logic_sstf(request)
@@ -150,24 +179,6 @@ private
 
   # Return nearest scheduled stop to current location.
   def nearest_stop(stops, floor_idx)
-    down_stop = next_stop_down(stops, floor_idx)
-    up_stop = next_stop_up(stops, floor_idx)
-
-    if down_stop.nil?
-      up_stop
-    elsif up_stop.nil?
-      down_stop
-    else # we have stops going up and going down.
-      # TODO for now, we'll bias equidistant stops to the up direction. we may want to adjust that with time-of-day or number of riders optimizations.
-      dn_stop_diff = floor_idx - dn_stop
-      up_stop_diff = up_stop - floor_idx
-      dn_stop_diff < up_stop_diff ? dn_stop : up_stop
-    end
-  end
-
-  # Return floor of waiter nearest to current location in any direction.
-  def nearest_waiter(stops, floor_idx)
-    waiter_floors = @floors.find_all { |f| f.has_waiters? }
     down_stop = next_stop_down(stops, floor_idx)
     up_stop = next_stop_up(stops, floor_idx)
 

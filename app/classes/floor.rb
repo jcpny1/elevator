@@ -99,7 +99,7 @@ private
       when 1
         press_call_up
       end
-      occupant.on_waitlist(occupant.boarding_time, @id)
+      occupant.on_waitlist(occupant.lobby_time, @id)
       msg "occupant list now: #{@occupants.length}", Logger::DEBUG
       msg "waitlist now: #{@waitlist.length}", Logger::DEBUG
   end
