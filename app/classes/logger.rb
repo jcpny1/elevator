@@ -8,13 +8,13 @@ module Logger
   #   '*'
 
   # Message severity levels:
-  DEBUG_3 = 0  # extreme detail degbugging messages
-  DEBUG_2 = 1  # medium detail degbugging messages
-  DEBUG, DEBUG_1 = 2  # least detail degbugging messages
-  INFO    = 3  # informational message
-  WARN    = 4  # waring message
-  ERROR   = 5  # error message
-  NONE    = 6  # no log messages
+  DEBUG_3     = 0       # extreme detail degbugging messages
+  DEBUG_2     = 1       # medium detail degbugging messages
+  DEBUG, DEBUG_1 = 2, 2 # least detail degbugging messages
+  INFO        = 3       # informational message
+  WARN        = 4       # waring message
+  ERROR       = 5       # error message
+  NONE, PRINT = 6, 6    # no log messages, print-only messages
 
   # Is debug enabled?
   def self.debug_on

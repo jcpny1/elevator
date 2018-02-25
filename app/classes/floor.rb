@@ -49,11 +49,11 @@ class Floor
 
   # Does this floor have elevator lobby waiters?
   def has_waiters?
-    waiters = false
+    waiters = 0
     @@floor_semaphore.synchronize {
-      waiters = @waitlist.length.zero?
+      waiters = @waitlist.length
     }
-    waiters
+    !waiters.zero?
   end
 
   # Return height of floor.

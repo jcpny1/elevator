@@ -106,14 +106,14 @@ private
       max_trip_time   = occupant.max_trip_time if occupant.max_trip_time > max_trip_time
       max_wait_time   = occupant.max_wait_time if occupant.max_wait_time > max_wait_time
     end
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Name         : #{@name}")
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Logic        : #{@logic}")
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Run Time     : %5.1f" % Simulator::time)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Total Trips  : %5.1f" % total_trips)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Avg Wait Time: %5.1f" % (total_wait_time/total_trips))
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Avg Trip Time: %5.1f" % (total_trip_time/total_trips))
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Max Wait Time: %5.1f" % max_wait_time)
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Max Trip Time: %5.1f" % max_trip_time)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Name         : #{@name}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Logic        : #{@logic}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Run Time     : %5.1f" % Simulator::time)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Total Trips  : %5.1f" % total_trips)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Avg Wait Time: %5.1f" % (total_wait_time/total_trips))
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Avg Trip Time: %5.1f" % (total_trip_time/total_trips))
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Max Wait Time: %5.1f" % max_wait_time)
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::PRINT, "  Max Trip Time: %5.1f" % max_trip_time)
 
     total_distance = @elevators.reduce(0) { |sum, elevator| sum + elevator[:car].distance }
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::INFO, "  Elevator dx  : %5.1f" % total_distance)

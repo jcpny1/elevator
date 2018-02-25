@@ -276,7 +276,21 @@ private
   def process_goto_request(request)
     request_floor_idx = request[:floor_idx].to_i
     set_stop(request_floor_idx)
-    @direction = request_floor_idx < @floor_idx ? 'down' : 'up'
+    case request_floor_idx <=> @floor_idx
+    when -1
+      @direction = 'down'
+    when 0
+      # Elevator is already at destination floor. See if there's a call here to set direction.
+      if @floors[@floor_idx].call_down
+        @direction = 'down'
+      elsif @floors[@floor_idx].call_up
+        @direction = 'up'
+      else
+        @direction = 'none'
+      end
+    when 1
+      @direction = 'up'
+    end
     execute_command { car_departure }
     request_floor_idx
   end

@@ -38,36 +38,44 @@ private
   def create_request
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG_2, 'create request')
     request = nil
-    #
+    ruleno = ''
     # 1. If waiting elevator with riders then
-    #      Send elevator to closest elevator stop in direction of travel.
     elevator = elevator_waiting_with_riders
     if !elevator.nil?
-      if fcfs?
-        rider = elevator[:car].occupants[0]
-        destination = rider.destination
+      if @logic == 'FCFS'
+        # 1A. Send elevator to destination of earliest-boarded rider.
+        destination = elevator[:car].occupants.first.destination
+        ruleno = '1A'
+      elsif @logic == 'SSTF'
+        # 1B. Send elevator to closest scheduled stop for this elevator in any direction.
+        destination = next_stop(elevator[:car], elevator[:car].stops, elevator[:car].floor_idx, 'any' )
+        ruleno = '1B'
       else
-        destination = next_stop(elevator[:car], elevator[:car].stops, elevator[:car].floor_idx )
+        # 1C. Send elevator to closest scheduled stop for this elevator in direction of travel.
+        destination = next_stop(elevator[:car], elevator[:car].stops, elevator[:car].floor_idx, nil )
+        ruleno = '1C'
       end
-      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination} if !destination.nil?
+      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: ruleno} if !destination.nil?
     else
-      #
-      # 2. If elevator waiting at floor with waiters, take destination of first waiter and send elevator there.
-      #
+      # 2. If elevator has no riders but is waiting at a floor with waiters then
       elevator = elevator_waiting_at_floor_with_waiters
       if !elevator.nil?
+        # 2A. Resend elevator to that same floor to activate departure logic.
         floor_idx = elevator[:car].floor_idx
-        destination_floor_idx = @floors[floor_idx].waitlist[0].destination
-        request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination_floor_idx}
+        request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor_idx, rule: '2A'}
       else
-        #
-        # 3. If floor with a waiter then
-        #      If waiting elevator then
-        #        Send elevator to waiter's floor.
-        floor = floor_with_waiter
+        # 3. If any waiting elevator,
         elevator = elevator_waiting
-        if !floor.nil? && !elevator.nil?
-          request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id}
+        if !elevator.nil?
+          if @logic == 'FCFS'
+            # 3A. Find floor with earliest waiter.
+            floor = floor_with_earliest_waiter
+            request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '3A'} if !floor.nil?
+          elsif @logic == 'SSTF'
+            # 3B. Find closest floor with waiters in either direction.
+            floor = floor_with_nearest_waiter
+            request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '3B'} if !floor.nil?
+          end
         end
       end
     end
@@ -86,7 +94,7 @@ private
 
   # Return a waiting elevator on a floor with occupants waiting in the elevator lobby.
   def elevator_waiting_at_floor_with_waiters
-    @elevators.find { |e| e[:car].waiting? && !@floors[e[:car].floor_idx].has_waiters? }
+    @elevators.find { |e| e[:car].waiting? && @floors[e[:car].floor_idx].has_waiters? }
   end
 
   # Return a waiting elevator that has riders on board.
@@ -94,14 +102,9 @@ private
     @elevators.find { |e| e[:car].waiting? && e[:car].has_riders? }
   end
 
-  # Using First Come, First Served logic?
-  def fcfs?
-    @logic == 'FCFS'
-  end
-
-  # Return a floor that has occupants waiting elevator lobby.
-  def floor_with_waiter
-    @floors.find { |f| !f.has_waiters? }
+  # Of all floors with waiters, return floor that has the earliest waiter.
+  def floor_with_earliest_waiter
+    @floors.find { |f| f.has_waiters? }
   end
 
   def logic_sstf(request)
@@ -162,9 +165,34 @@ private
     end
   end
 
-  # Return elevator's next stop.
-  def next_stop(elevator, stops, floor_idx)
-   stop = nil
+  # Return floor of waiter nearest to current location in any direction.
+  def nearest_waiter(stops, floor_idx)
+    waiter_floors = @floors.find_all { |f| f.has_waiters? }
+    down_stop = next_stop_down(stops, floor_idx)
+    up_stop = next_stop_up(stops, floor_idx)
+
+    if down_stop.nil?
+      up_stop
+    elsif up_stop.nil?
+      down_stop
+    else # we have stops going up and going down.
+      # TODO for now, we'll bias equidistant stops to the up direction. we may want to adjust that with time-of-day or number of riders optimizations.
+      dn_stop_diff = floor_idx - dn_stop
+      up_stop_diff = up_stop - floor_idx
+      dn_stop_diff < up_stop_diff ? dn_stop : up_stop
+    end
+  end
+
+  # Determines elevator's next stop.
+  # When direction = 'any', return nearest stop in any direction.
+  # Otherwise, return nearest stop in direction of elevator travel.
+  # If no stop in direction of travel, return stop in opposite direction of travel.
+  # If elevator is stationary, return closest stop in either direction.
+  def next_stop(elevator, stops, floor_idx, direction)
+
+   if direction == 'any'
+     return nearest_stop(stops, floor_idx)
+   end
 
    if elevator.going_down?
      stop = next_stop_down(stops, floor_idx)
