@@ -14,8 +14,8 @@ require_relative 'app/classes/simulator'
 #   SSTF   (Shortest Seek Time First): Shortest travel distance in any direction from current location.
 #   SCAN   (Elevator Algorithm): Move in one direction. At end of movement, reverse direction.
 #   L-SCAN (Look SCAN): Like SCAN, but reverse direction when last request in current direction is serviced.
-#   C-SCAN (Circular SCAN): Like SCAN, but ine direction only. At end of movement, return to beginning and SCAN again.
-#   C-LOOK (Circular LOOK): Like C-SCAN, but do not travel to end of movement. Return to beginning when last request is serviced.
+# #  C-SCAN (Circular SCAN): Like SCAN, but ine direction only. At end of movement, return to beginning and SCAN again.
+# #  C-LOOK (Circular LOOK): Like C-SCAN, but do not travel to end of movement. Return to beginning when last request is serviced.
 # modifiers {}:
 # floors: Number of floors.
 # elevators: Number of elevators.
@@ -25,7 +25,7 @@ require_relative 'app/classes/simulator'
 sim_runs = []
 # sim_runs << {name: 'testing 1', logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   1, debug_level: Logger::DEBUG}
 # sim_runs << {name: 'testing 2', logic:'FCFS', modifiers: {}, floors: 10, elevators:  1, occupants:   2, debug_level: Logger::DEBUG}
-sim_runs << {name: 'simple 1',  logic:'SCAN', modifiers: {}, floors: 4, elevators:  1, occupants:   40, debug_level: Logger::INFO}
+sim_runs << {name: 'simple 1',  logic:'FCFS', modifiers: {}, floors: 4, elevators:  1, occupants:   40, debug_level: Logger::INFO}
 # sim_runs << {name: 'simple 2',  logic:'FCFS', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}
 # sim_runs << {name: 'smarts 1',  logic:'SSTF', modifiers: {}, floors: 10, elevators:  1, occupants:   40, debug_level: Logger::DEBUG}
 # sim_runs << {name: 'smarts 2',  logic:'SSTF', modifiers: {}, floors: 10, elevators:  2, occupants:   40, debug_level: Logger::DEBUG}

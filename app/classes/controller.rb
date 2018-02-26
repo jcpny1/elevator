@@ -1,11 +1,11 @@
 # The Controller send commands to elevators.
-# The Controller can view each elevator and call button status.
-# The Controller monitors every call button status and assigns elevators to service call requests.
-# The Controller monitors every elevator status and commands the elevator to move when a movement is determined to be necessary.
+# The Controller can view each elevator's scheduled stops and each floor's call button status.
+# The Controller assigns elevators to service floor call requests.
+# The Controller commands an elevator to move when a movement is determined to be necessary.
 class Controller
 
   LOGGER_MODULE = 'Controller'  # for console logger.
-  LOOP_DELAY    = 0.01          # (seconds) - sleep delay in controller loop.
+  LOOP_DELAY    = 0.010         # (seconds) - sleep delay in controller loop.
 
   def initialize(elevators, floors, logic)
     @id         = 0          # Controller id.
@@ -20,8 +20,9 @@ class Controller
   #  2. Goto step 1.
   def run
     while true
-      request = create_request
-      if !request.nil?
+      while true
+        request = create_request
+        break if request.nil?
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request)
         elevator = @elevators[request[:elevator_idx]]
         elevator[:car].command_q << request
@@ -40,22 +41,7 @@ private
     request = nil
     ruleno = ''
     if @logic == 'SCAN'
-      # 1. Send elevator to next floor in direction of travel. If at end of travel, reverse direction.
-      elevator = elevator_waiting
-      if !elevator.nil?
-        if elevator[:car].going_up?
-          destination = elevator[:car].floor_idx + 1
-          if destination == @floors.length
-            destination = elevator[:car].floor_idx - 1
-          end
-        else
-          destination = elevator[:car].floor_idx - 1
-          if destination == 0
-            destination = elevator[:car].floor_idx + 1
-          end
-        end
-        request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: '1'}
-      end
+      request = do_scan_logic
     else
       # 2. If waiting elevator with riders then
       elevator = elevator_waiting_with_riders
@@ -99,6 +85,28 @@ private
           end
         end
       end
+    end
+    request
+  end
+
+  # Send waiting elevator to next floor in direction of travel. If at end of travel, reverse direction.
+  # Return elevator request command.
+  def do_scan_logic
+    request = nil
+    elevator = elevator_waiting
+    if !elevator.nil?
+      if elevator[:car].going_up?
+        destination = elevator[:car].floor_idx + 1
+        if destination == @floors.length
+          destination = elevator[:car].floor_idx - 1
+        end
+      else
+        destination = elevator[:car].floor_idx - 1
+        if destination == 0
+          destination = elevator[:car].floor_idx + 1
+        end
+      end
+      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: 'SCAN', file: __FILE__, line: __LINE__}
     end
     request
   end

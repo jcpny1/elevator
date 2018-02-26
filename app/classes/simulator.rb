@@ -3,7 +3,7 @@
 class Simulator
 
   LOGGER_MODULE  = 'Simulator' # for console logger.
-  LOOP_DELAY     = 0.1         # (seconds) - sleep delay in simulation loop.
+  LOOP_DELAY     = 0.050       # (seconds) - sleep delay in simulation loop.
   LOOP_TIME_INCR = 1.0         # (seconds) - amount of simulated time to advance for each simulation loop.
   RNG_SEED       = 101         # for random number generation. Using a static seed value for repeatable simulation runs.
 

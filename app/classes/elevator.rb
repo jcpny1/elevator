@@ -7,7 +7,7 @@ class Elevator
   attr_reader :command_q, :distance, :floor_idx, :id, :status, :stops
 
   LOGGER_MODULE = 'Elevator'  # for console logger.
-  LOOP_DELAY    = 0.1         # (seconds) - sleep delay in main loop.
+  LOOP_DELAY    = 0.050       # (seconds) - sleep delay in main loop.
 
   # Elevator parameters:
   CAR_SPEED       = 4.0   # in feet per second.
