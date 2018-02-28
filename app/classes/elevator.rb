@@ -83,24 +83,23 @@ class Elevator
   def run
     destination = Floor::GROUND_FLOOR
     while true
-      request = @command_q.deq
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "request received: #{request}, current floor: #{@floor_idx}")
-      destination = process_controller_command(request)
-      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current floor: #{@floor_idx}")
-      while true
-        case @floor_idx <=> destination
-        when -1
-          execute_command { car_move( 1) }
-        when 1
-          execute_command { car_move(-1) }
-        when 0
-          execute_command { car_stop    }
-          execute_command { car_arrival }
-          discharge_passengers
-          @status = 'waiting'
-          Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@status}")
-          break
-        end
+      if !@command_q.empty?
+        request = @command_q.deq
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "request received: #{request}, current floor: #{@floor_idx}")
+        destination = process_controller_command(request)
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current floor: #{@floor_idx}")
+      end
+      case @floor_idx <=> destination
+      when -1
+        execute_command { car_move( 1) }
+      when 1
+        execute_command { car_move(-1) }
+      when 0
+        execute_command { car_stop    }
+        execute_command { car_arrival }
+        discharge_passengers
+        @status = 'waiting'
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@status}")
       end
       sanity_check if Logger::debug_on
       sleep LOOP_DELAY
