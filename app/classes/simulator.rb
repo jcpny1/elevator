@@ -11,7 +11,7 @@ class Simulator
   @@sim_time  = nil   # Simulated time (in seconds).
 
   def initialize(name, logic, modifiers, num_floors, num_elevators, num_occupants, debug_level)
-    @id             = 0    # for console logger.
+    @id             = 0     # Simulator Id.
     @name           = name
     @logic          = logic
     @modifiers      = modifiers

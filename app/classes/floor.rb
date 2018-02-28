@@ -12,7 +12,7 @@ class Floor
   @@floor_semaphore = Mutex.new   # Floor objects are subject to multithreaded r/w access.
                                   # Concurrency is improved by having one semaphore for each floor instead of one for all floors.
   def initialize(id)
-    @id           = id    # Floor id
+    @id           = id    # Floor Id.
     @call_down    = false # the elevator lobby call down button activation status.
     @call_up      = false # the elevator lobby call up button activation status.
     @occupants    = []    # persons on a floor that are not waiting for an elevator).

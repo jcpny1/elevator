@@ -24,17 +24,18 @@ class Elevator
   LOAD_TIME      = 2.0  # time to onboard one passenger.
 
   def initialize(id, command_q, floors)
-    @id        = id               # Elevator id.
-    @command_q = command_q        # to receive requests from the controller.
+    @id        = id               # Elevator Id.
+    @command_q = command_q        # receives requests from the controller.
     @direction = 'none'           # heading = up, down, or none.
     @distance  = 0.0              # cumulative distance traveled.
     @door      = 'closed'         # door status = open or closed.
     @floors    = floors           # array of Floor objects.
-    @floor_idx = 1                # elevator location.
-    @riders    = {count: 0,       # # of elevator occupants,
+    @floor_idx = 1                # current location.
+    @motion    = 'stopped'        # current movement. stopped or moving.
+    @riders    = {count: 0,       # number of occupants,
                   weight: 0.0,    # sum of occupants weight,
-                  occupants: []}  # occupants of elevator.
-    @status    = 'waiting'        # elevator status = executing (a controller command) or waiting (for a command).
+                  occupants: []}  # occupant list.
+    @status    = 'waiting'        # status = executing (a controller command) or waiting (for a command).
     @stops     = Array.new(@floors.length, false)  # stop-at-floor indicator, true or false.
     @time      = 0.0              # elevator time, aka next available time.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
@@ -109,7 +110,7 @@ class Elevator
   # Check for error conditions.
   def sanity_check
     # Don't travel below ground floor or above top floor.
-    raise "Elevator #{@id} out-of-bounds on floor #{@floor_idx}}" if (@floor_idx < Floor::GROUND_FLOOR || @floor_idx >= @floors.length)
+    raise "Elevator #{@id} out-of-bounds on floor #{@floor_idx}" if (@floor_idx < Floor::GROUND_FLOOR || @floor_idx >= @floors.length)
     # Don't have riders going up AND riders going down.
     rider_going_down = false
     rider_going_up = false
@@ -117,7 +118,8 @@ class Elevator
       rider_going_down ||= occupant.destination < @floor_idx
       rider_going_down ||= occupant.destination > @floor_idx
     end
-    raise "Elevator #{@id} has riders in oppostite directions}" if (rider_going_down && rider_going_up)
+    raise "Elevator #{@id} has riders in oppostite directions" if (rider_going_down && rider_going_up)
+    raise "Elevator #{@id} moving with doors open" if ((!@door.eql? 'closed') && (!@motion.eql? 'stopped'))
   end
 
   # Does elevator have no direction?
@@ -171,22 +173,28 @@ private
 
   # Sart car movement.
   def car_start
-    execute_command { door_close }
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "starting #{@direction}")
-    advance_elevator_time(CAR_START)
-    car_status
+    if @motion != 'moving'
+      execute_command { door_close }
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "starting #{@direction}")
+      advance_elevator_time(CAR_START)
+      @motion = 'moving'
+      car_status
+    end
   end
 
   # Display car status.
   def car_status
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@status} direction #{@direction} floor #{@floor_idx}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "status: #{@status} motion: #{@motion} direction: #{@direction} floor: #{@floor_idx}")
   end
 
   # Stop car movement.
   def car_stop
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "stopping on #{@floor_idx}")
-    advance_elevator_time(CAR_STOP)
-    car_status
+    if @motion != 'stopped'
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "stopping on #{@floor_idx}")
+      advance_elevator_time(CAR_STOP)
+      @motion = 'stopped'
+      car_status
+    end
   end
 
   # Discharge riders to destination floor.

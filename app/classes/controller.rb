@@ -8,7 +8,7 @@ class Controller
   LOOP_DELAY    = 0.010         # (seconds) - sleep delay in controller loop.
 
   def initialize(elevators, floors, logic)
-    @id         = 0          # Controller id.
+    @id         = 0          # Controller Id.
     @elevators  = elevators  # Elevators controlled by this Controller.
     @floors     = floors     # Floors services by these elevators. For now, assume all elevators service all floors.
     @logic      = logic      # Elevator control logic name.

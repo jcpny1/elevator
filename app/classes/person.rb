@@ -3,9 +3,9 @@
 class Person
 
   attr_reader :id, :weight
-  
+
   def initialize(id, weight)
-    @id = id
-    @weight = weight
+    @id = id          # Person Id.
+    @weight = weight  # Person Weight.
   end
 end
