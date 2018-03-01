@@ -71,7 +71,7 @@ class Elevator
   #  2. Stop at destination floor.
   #  3. Discharge any passengers for this floor.
   #  4. Pickup any passengers going in same direction.
-  #  5. Goto step 1.
+  #  5. Go to step 1.
   def run
     destination = Floor::GROUND_FLOOR
     while true

@@ -20,9 +20,7 @@ class Controller
   #  2. Goto step 1.
   def run
     while true
-      while true
-        request = create_request
-        break if request.nil?
+      create_requests.each do |request|
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, request)
         elevator = @elevators[request[:elevator_idx]]
         elevator[:car].command_q << request
@@ -36,12 +34,12 @@ private
 
   # Create elevator movement requests given current floor and elevator states.
   # Return elevator command, or nil if nothing to do.
-  def create_request
+  def create_requests
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG_2, 'create request')
-    request = nil
+    requests = []
     ruleno = ''
     if @logic == 'SCAN'
-      request = do_scan_logic
+      requests << do_scan_logic
     else
       # 2. If waiting elevator with riders then
       elevator = elevator_waiting_with_riders
@@ -61,14 +59,14 @@ private
         else
           raise "Invalid logic: #{@logic}"
         end
-        request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: ruleno} if !destination.nil?
+        requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: ruleno} if !destination.nil?
       else
         # 3. If elevator has no riders but is waiting at a floor with waiters then
         elevator = elevator_waiting_at_floor_with_waiters
         if !elevator.nil?
           # 3A. Resend elevator to that same floor to activate departure logic.
           floor_idx = elevator[:car].floor_idx
-          request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor_idx, rule: '3A'}
+          requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor_idx, rule: '3A'}
         else
           # 4. If any waiting elevator,
           elevator = elevator_waiting
@@ -76,17 +74,17 @@ private
             if @logic == 'FCFS'
               # 4A. Find floor with earliest waiter.
               floor = floor_with_earliest_waiter
-              request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '4A'} if !floor.nil?
+              requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '4A'} if !floor.nil?
             elsif @logic == 'SSTF'
               # 4B. Find closest floor with waiters in either direction.
               floor = floor_with_nearest_waiter(elevator[:car].floor_idx)
-              request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '4B'} if !floor.nil?
+              requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: floor.id, rule: '4B'} if !floor.nil?
             end
           end
         end
       end
     end
-    request
+    requests
   end
 
   # Send waiting elevator to next floor in direction of travel. If at end of travel, reverse direction.
