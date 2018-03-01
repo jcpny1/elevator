@@ -41,13 +41,6 @@ class Elevator
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
 
-  # Is elevator full?
-  # For coding simplicity, we'll allow boarding until car is overweight.
-  # In the real world, we would board. Then once overweight, offboard until under weight.
-  def elevator_full?
-    @riders[:count] == PASSENGER_LIMIT || @riders[:weight] >= WEIGHT_LIMIT
-  end
-
   # Is elevator going down?
   def going_down?
     @direction == 'down'
@@ -73,12 +66,11 @@ class Elevator
     @riders[:occupants]
   end
 
-  # Main logic:
-  #  1. Stop at destination floor.
-  #  2. Discharge any passengers for this floor.
-  #  3. Notify controller request complete.
-  #  3. Wait for next destination floor from Controller.
-  #  4. Pickup any passengers going in same direction as next destination floor.
+  # Basic logic:
+  #  1. Receive destination from Controller.
+  #  2. Stop at destination floor.
+  #  3. Discharge any passengers for this floor.
+  #  4. Pickup any passengers going in same direction.
   #  5. Proceed to next destination floor.
   #  6. Goto step 1.
   def run
@@ -88,6 +80,7 @@ class Elevator
         request = @command_q.deq
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "request received: #{request}, current floor: #{@floor_idx}")
         destination = process_controller_command(request)
+        execute_command { car_departure }
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current floor: #{@floor_idx}")
       end
       case @floor_idx <=> destination
@@ -96,7 +89,6 @@ class Elevator
       when 1
         execute_command { car_move(-1) }
       when 0
-        execute_command { car_stop    }
         execute_command { car_arrival }
         discharge_passengers
         @status = 'waiting'
@@ -105,21 +97,6 @@ class Elevator
       sanity_check if Logger::debug_on
       sleep LOOP_DELAY
     end
-  end
-
-  # Check for error conditions.
-  def sanity_check
-    # Don't travel below ground floor or above top floor.
-    raise "Elevator #{@id} out-of-bounds on floor #{@floor_idx}" if (@floor_idx < Floor::GROUND_FLOOR || @floor_idx >= @floors.length)
-    # Don't have riders going up AND riders going down.
-    rider_going_down = false
-    rider_going_up = false
-    occupants.each do |occupant|
-      rider_going_down ||= occupant.destination < @floor_idx
-      rider_going_down ||= occupant.destination > @floor_idx
-    end
-    raise "Elevator #{@id} has riders in oppostite directions" if (rider_going_down && rider_going_up)
-    raise "Elevator #{@id} moving with doors open" if ((!@door.eql? 'closed') && (!@motion.eql? 'stopped'))
   end
 
   # Does elevator have no direction?
@@ -152,6 +129,7 @@ private
 
   # Elevator car arrives at a floor.
   def car_arrival
+    execute_command { car_stop  }
     execute_command { door_open }
     cancel_stop(@floor_idx)
   end
@@ -247,12 +225,19 @@ private
     yield
   end
 
+  # Is elevator full?
+  # For coding simplicity, we'll allow boarding until car is overweight.
+  # In the real world, we would board. Then once overweight, offboard until under weight.
+  def full?
+    @riders[:count] == PASSENGER_LIMIT || @riders[:weight] >= WEIGHT_LIMIT
+  end
+
   # Pickup passengers from floor's wait list.
   # Return number of passengers picked up.
   def pickup_passengers
     pickup_count = 0
     @floors[@floor_idx].leave_waitlist do |passenger|
-      if ((going_up? && (passenger.destination > @floor_idx)) || (going_down? && (passenger.destination < @floor_idx))) && !elevator_full?
+      if ((going_up? && (passenger.destination > @floor_idx)) || (going_down? && (passenger.destination < @floor_idx))) && !full?
         @riders[:count]  += 1
         @riders[:weight] += passenger.weight
         occupants << passenger
@@ -298,8 +283,22 @@ private
     when 1
       @direction = 'up'
     end
-    execute_command { car_departure }
     request_floor_idx
+  end
+
+  # Check for error conditions.
+  def sanity_check
+    # Don't travel below ground floor or above top floor.
+    raise "Elevator #{@id} out-of-bounds on floor #{@floor_idx}" if (@floor_idx < Floor::GROUND_FLOOR || @floor_idx >= @floors.length)
+    # Don't have riders going up AND riders going down.
+    rider_going_down = false
+    rider_going_up = false
+    occupants.each do |occupant|
+      rider_going_down ||= occupant.destination < @floor_idx
+      rider_going_down ||= occupant.destination > @floor_idx
+    end
+    raise "Elevator #{@id} has riders in oppostite directions" if (rider_going_down && rider_going_up)
+    raise "Elevator #{@id} moving with doors open" if ((!@door.eql? 'closed') && (!@motion.eql? 'stopped'))
   end
 
   # Set stop request button for given floor.

@@ -9,12 +9,31 @@ The app consists of three main components, each of which operates in their own t
 * the Controller,
 * the Elevators.
 
-[The project repository is set up as a Rail API app (for future enhancements), but presently is just command line Ruby.]
+The Controller will command elevator movements in response to floor call buttons in each floor's elevator lobby and in-elevator floor button activations.
+The Controller will command the elevators to move according to the logic that is requested for the simulation.
+In order to test the efficiency of various scenarios, multiple logic algorithms have been coded.
+
+Currently implemented logic models are:
+* FCFS  (First Come, First Served) Elevators service requests in the order received without regard to distance or direction.
+* SCAN  (Scan) Elevators travel from first floor to last floor, then travel from last floor to first floor, then repeat.
+* SSTF  (Shortest Seek Time First) Elevators service closest request to current position in any direction.
+
+Upcoming logic:
+* L-SCAN (Look SCAN): Like SCAN, but instead of traveling to last or first floor, reverse direction when last request in current direction is serviced.
+* C-SCAN (Circular SCAN): Like SCAN, but travel from first to last floor only. At last floor, return directly to first floor and SCAN again.
+* C-LOOK (Circular LOOK): Like L-SCAN with C-SCAN (return directly to first floor when last request in current direction is serviced).
+
+Regardless of logic selected:
+* passengers on board an elevator will always have priority over passengers waiting for an elevator to arrive.
+E.G., once an elevator is carrying passengers up, it will not travel down to pickup or discharge another passenger.
+* passengers waiting for an up elevator will not board an elevator traveling down, and vice versa.
+
+[NOTE: The project repository is set up as a Rail API app (for future enhancements), but presently is just command line Ruby.]
 
 ### Sample Output
 ```
 ~/projects/elevator(master)$ ./run_sim
-> > > Begin Run 0: {:name=>"simple 1", :logic=>"FCFS", :modifiers=>{}, :floors=>4, :elevators=>1, :occupants=>10, :debug_level=>3}
+> > > Begin Run 0: {:name=>"simple 1", :logic=>"FCFS", :modifiers=>{}, :floors=>4, :elevators=>1, :occupants=>10, :debug_level=>"INFO"}
 T +    0.00: Simulator 0: starting
 T +    0.00: Simulator 0: Morning Rush Begin
 T +   49.00: Floor 1: call up
@@ -64,12 +83,12 @@ T + 1076.00: Simulator 0:   Max Wait Time:   2.0
 T + 1076.00: Simulator 0:   Max Trip Time:   2.0
 T + 1076.00: Simulator 0:   Elevator dx  : 420.0
 T + 1076.00: Simulator 0:     Elevator 0 : 420.0
->  > > End Run 0: {:name=>"simple 1", :logic=>"FCFS", :modifiers=>{}, :floors=>4, :elevators=>1, :occupants=>10, :debug_level=>3}
+>  > > End Run 0: {:name=>"simple 1", :logic=>"FCFS", :modifiers=>{}, :floors=>4, :elevators=>1, :occupants=>10, :debug_level=>"INFO"}
 
 real	1m48.261s
 user	0m1.759s
 sys	0m0.422s
-~/projects/elevator(master)$ 
+~/projects/elevator(master)$
 ```
 
 ## History
@@ -80,7 +99,7 @@ sys	0m0.422s
 ## Installation
 
 Elevator was developed using Ruby 2.4.2
- 
+
 ```
 $ ruby -v
 ruby 2.4.2p198 (2017-09-14 revision 59899) [x86_64-linux]
@@ -92,7 +111,8 @@ ruby 2.4.2p198 (2017-09-14 revision 59899) [x86_64-linux]
 * `bundle install`
 
 ## Usage
-* To configure a simulation, edit the `run_sim.rb` file.
+* A default simulation configuration is provided in file `run_sim.rb`.
+* To change the simulation configuration, edit file `run_sim.rb`.
 * To run a simulation, enter `./run_sim`.
 
 ## Deployment
