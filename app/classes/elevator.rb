@@ -17,11 +17,11 @@ class Elevator
   # Elevator operation times (in seconds):
   CAR_START      = 1.0  # time to go from stopped to moving.
   CAR_STOP       = 1.0  # time to go from moving to stopped.
+  DISCHARGE_TIME = 2.0  # time to offboard each passenger.
   DOOR_CLOSE     = 2.0  # time for doors to close.
   DOOR_OPEN      = 2.0  # time for doors to open.
-  DISCHARGE_TIME = 2.0  # time to offboard one passenger.
   DOOR_WAIT_TIME = 3.0  # time doors stay open after last offboard or onboard.
-  LOAD_TIME      = 2.0  # time to onboard one passenger.
+  LOAD_TIME      = 2.0  # time to onboard each passenger.
 
   def initialize(id, command_q, floors)
     @id        = id               # Elevator Id.
@@ -81,7 +81,6 @@ class Elevator
         Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "request received: #{request}, current floor: #{@floor_idx}")
         destination = process_controller_command(request)
         execute_command { car_departure }
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "next destination: #{destination}, current floor: #{@floor_idx}")
       end
       case @floor_idx <=> destination
       when -1
@@ -91,8 +90,8 @@ class Elevator
       when 0
         execute_command { car_arrival }
         discharge_passengers
+        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "waiting") if @status != 'waiting'
         @status = 'waiting'
-        Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "#{@status}")
       end
       sanity_check if Logger::debug_on
       sleep LOOP_DELAY
@@ -123,8 +122,10 @@ private
 
   # Clear stop request button for given floor.
   def cancel_stop(floor_idx)
-    @stops[floor_idx] = false
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "clearing stop. stops: #{@stops.join(', ')}")
+    if @stops[floor_idx]
+      @stops[floor_idx] = false
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "clearing stop. stops: #{@stops.join(', ')}")
+    end
   end
 
   # Elevator car arrives at a floor.
@@ -162,7 +163,7 @@ private
 
   # Display car status.
   def car_status
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "status: #{@status} motion: #{@motion} direction: #{@direction} floor: #{@floor_idx}")
+    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "status: #{@status}, motion: #{@motion}, direction: #{@direction}, floor: #{@floor_idx}")
   end
 
   # Stop car movement.
@@ -200,7 +201,7 @@ private
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'door closing')
       @door = 'closed'
       advance_elevator_time(DOOR_CLOSE)
-      execute_command {door_status}
+      execute_command { door_status }
     end
   end
 
@@ -210,7 +211,7 @@ private
       Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'door opening')
       @door = 'open'
       advance_elevator_time(DOOR_OPEN)
-      execute_command {door_status}
+      execute_command { door_status }
     end
   end
 
@@ -303,7 +304,9 @@ private
 
   # Set stop request button for given floor.
   def set_stop(floor_idx)
-    @stops[floor_idx] = true
-    Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "adding stop. stops: #{@stops.join(', ')}")
+    if !@stops[floor_idx]
+      @stops[floor_idx] = true
+      Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, "adding stop. stops: #{@stops.join(', ')}")
+    end
   end
 end
