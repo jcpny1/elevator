@@ -13,8 +13,8 @@ class Floor
                                   # Concurrency is improved by having one semaphore for each floor instead of one for all floors.
   def initialize(id)
     @id           = id    # Floor Id.
-    @call_down    = false # the elevator lobby call down button activation status.
-    @call_up      = false # the elevator lobby call up button activation status.
+    @call_down    = false # elevator lobby call down button activation status.
+    @call_up      = false # elevator lobby call up button activation status.
     @occupants    = []    # persons on a floor that are not waiting for an elevator).
     @waitlist     = []    # persons on a floor that are waiting for an elevator.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')

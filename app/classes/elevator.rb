@@ -36,7 +36,7 @@ class Elevator
                   weight: 0.0,    # sum of occupants weight,
                   occupants: []}  # occupant list.
     @status    = 'waiting'        # status = executing (a controller command) or waiting (for a command).
-    @stops     = Array.new(@floors.length, false)  # stop-at-floor indicator, true or false.
+    @stops     = Array.new(@floors.length, false)  # floor stop request button activation status.
     @time      = 0.0              # elevator time, aka next available time.
     Logger::msg(Simulator::time, LOGGER_MODULE, @id, Logger::DEBUG, 'created')
   end
@@ -71,8 +71,7 @@ class Elevator
   #  2. Stop at destination floor.
   #  3. Discharge any passengers for this floor.
   #  4. Pickup any passengers going in same direction.
-  #  5. Proceed to next destination floor.
-  #  6. Goto step 1.
+  #  5. Goto step 1.
   def run
     destination = Floor::GROUND_FLOOR
     while true
@@ -108,7 +107,7 @@ class Elevator
     @status = s
   end
 
-  # Return list of elevator stops.
+  # Return elevator status.
   def waiting?
     @status == 'waiting'
   end
