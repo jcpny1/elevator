@@ -39,7 +39,7 @@ private
     requests = []
     ruleno = ''
     if @logic == 'SCAN'
-      requests << do_scan_logic
+      do_scan_logic(requests)
     else
       # 2. If waiting elevator with riders then
       elevator = elevator_waiting_with_riders
@@ -89,7 +89,7 @@ private
 
   # Send waiting elevator to next floor in direction of travel. If at end of travel, reverse direction.
   # Return elevator request command.
-  def do_scan_logic
+  def do_scan_logic(requests)
     request = nil
     elevator = elevator_waiting
     if !elevator.nil?
@@ -106,7 +106,7 @@ private
       end
       request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: 'SCAN', file: __FILE__, line: __LINE__}
     end
-    request
+    requests << request if !request.nil?
   end
 
   # Return a waiting elevator.
