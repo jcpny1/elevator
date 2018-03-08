@@ -88,25 +88,26 @@ private
   end
 
   # Send waiting elevator to next floor in direction of travel. If at end of travel, reverse direction.
-  # Return elevator request command.
+  # Returns elevator requests.
   def do_scan_logic(requests)
-    request = nil
-    elevator = elevator_waiting
-    if !elevator.nil?
+    destination = nil
+    @elevators.each do |elevator|
+      next if !elevator[:car].waiting?
       if elevator[:car].going_up?
-        destination = elevator[:car].floor_idx + 1
-        if destination == @floors.length
-          destination = elevator[:car].floor_idx - 1
+        if elevator[:car].floor_idx == (@floors.length - 1)  # already at top floor
+          destination = elevator[:car].floor_idx - 1  # start going down
+        else
+          destination = elevator[:car].floor_idx + 1  # go up one floor
         end
-      else
-        destination = elevator[:car].floor_idx - 1
-        if destination == 0
-          destination = elevator[:car].floor_idx + 1
+      else  # going_down
+        if elevator[:car].floor_idx == Floor::GROUND_FLOOR # already at bottom floor
+          destination = Floor::GROUND_FLOOR + 1  # start going up
+        else
+          destination = elevator[:car].floor_idx - 1  # go down one floor
         end
       end
-      request = {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: 'SCAN', file: __FILE__, line: __LINE__}
+      requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: 'SCAN', file: __FILE__, line: __LINE__}
     end
-    requests << request if !request.nil?
   end
 
   # Return a waiting elevator.
