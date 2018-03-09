@@ -13,7 +13,7 @@ The Controller will command elevator movements in response to floor call buttons
 The Controller will command the elevators to move according to the logic that is requested for the simulation.
 In order to test the efficiency of various scenarios, multiple logic algorithms have been coded.
 
-The most recent simulation results can be found in Results.xlsx.
+The most recent simulation results can be found in Results.odf.
 
 Currently implemented logic models are:
 * FCFS  (First Come, First Served) Elevators service requests in the order received without regard to distance or direction.
