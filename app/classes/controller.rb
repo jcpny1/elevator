@@ -40,6 +40,8 @@ private
     ruleno = ''
     if @logic == 'SCAN'
       do_scan_logic(requests)
+    elsif @logic == 'LSCAN'
+      do_lscan_logic(requests)
     else
       # 2. If waiting elevator with riders then
       elevator = elevator_waiting_with_riders
@@ -52,10 +54,6 @@ private
           # 2B. Send elevator to closest scheduled stop for this elevator in any direction.
           destination = next_stop(elevator[:car], elevator[:car].stops, elevator[:car].floor_idx, 'any' )
           ruleno = '2B'
-        elsif @logic == 'L-SCAN'
-          # 2C. Send elevator to closest scheduled stop for this elevator in direction of travel.
-          destination = next_stop(elevator[:car], elevator[:car].stops, elevator[:car].floor_idx, nil )
-          ruleno = '2C'
         else
           raise "Invalid logic: #{@logic}"
         end
@@ -87,26 +85,33 @@ private
     requests
   end
 
-  # Send waiting elevator to next floor in direction of travel. If at end of travel, reverse direction.
+  # Like SCAN, but instead of traveling to last or first floor, reverse direction when last request in current direction is serviced.
   # Returns elevator requests.
-  def do_scan_logic(requests)
-    destination = nil
+  def do_lscan_logic(requests)
     @elevators.each do |elevator|
       next if !elevator[:car].waiting?
-      if elevator[:car].going_up?
-        if elevator[:car].floor_idx == (@floors.length - 1)  # already at top floor
-          destination = elevator[:car].floor_idx - 1  # start going down
-        else
-          destination = elevator[:car].floor_idx + 1  # go up one floor
-        end
-      else  # going_down
-        if elevator[:car].floor_idx == Floor::GROUND_FLOOR # already at bottom floor
-          destination = Floor::GROUND_FLOOR + 1  # start going up
-        else
-          destination = elevator[:car].floor_idx - 1  # go down one floor
-        end
+      destination = elevator[:car].going_down? ? next_destination_down(elevator) : next_destination_up(elevator)
+      if destination.nil?
+        destination = elevator[:car].going_down? ? next_destination_up(elevator) : next_destination_down(elevator)
       end
-      requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: 'SCAN', file: __FILE__, line: __LINE__}
+      next if destination.nil?
+      if destination > elevator[:car].floor_idx
+        direction = 'up'
+      elsif destination < elevator[:car].floor_idx
+        direction = 'down'
+      end
+      destination = elevator[:car].scan(direction)
+      requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: 'LSCAN', file: __FILE__, line: __LINE__} if !destination.nil?
+    end
+  end
+
+  # Elevator travels from first floor to last floor, then travel from last floor to first floor, then repeat.
+  # Adds new requests to requests array.
+  def do_scan_logic(requests)
+    @elevators.each do |elevator|
+      next if !elevator[:car].waiting?
+      destination = elevator[:car].scan(nil)
+      requests << {time: Simulator::time, elevator_idx: elevator[:car].id, cmd: 'GOTO', floor_idx: destination, rule: 'SCAN', file: __FILE__, line: __LINE__} if !destination.nil?
     end
   end
 
@@ -221,13 +226,44 @@ private
     end
   end
 
+  # Find an elevator's next stop or closest floor with waiters in down direction.
+  # Returns floor index or nil.
+  def next_destination_down(elevator)
+    destination = nil
+    waiter_floor_idx = waiter_floor_down(elevator[:car].floor_idx)
+    stop_floor_idx = next_stop_down(elevator[:car].stops, elevator[:car].floor_idx)
+    if stop_floor_idx.nil?
+      destination = waiter_floor_idx
+    elsif waiter_floor_idx.nil?
+      destination = stop_floor_idx
+    else
+      destination = [stop_floor_idx, waiter_floor_idx].max
+    end
+    destination
+  end
+
+  # Find an elevator's next stop or closest floor with waiters in up direction.
+  # Returns floor index or nil.
+  def next_destination_up(elevator)
+    destination = nil
+    waiter_floor_idx = waiter_floor_up(elevator[:car].floor_idx)
+    stop_floor_idx = next_stop_up(elevator[:car].stops, elevator[:car].floor_idx)
+    if stop_floor_idx.nil?
+      destination = waiter_floor_idx
+    elsif waiter_floor_idx.nil?
+      destination = stop_floor_idx
+    else
+      destination = [stop_floor_idx, waiter_floor_idx].min
+    end
+    destination
+  end
+
   # Determines elevator's next stop.
   # When direction = 'any', return nearest stop in any direction.
   # Otherwise, return nearest stop in direction of elevator travel.
   # If no stop in direction of travel, return stop in opposite direction of travel.
   # If elevator is stationary, return closest stop in either direction.
   def next_stop(elevator, stops, floor_idx, direction)
-
    if direction == 'any'
      return nearest_stop(stops, floor_idx)
    end
@@ -245,14 +281,28 @@ private
    return nearest_stop(stops, floor_idx)
   end
 
-  # Return elevator's next stop in the down direction.
+  # Return floor index of elevator's next stop in the down direction.
   def next_stop_down(stops, floor_idx)
    stops.slice(0...floor_idx).rindex { |stop| stop }
   end
 
-  # Return elevator's next stop in the up direction.
+  # Return floor index of elevator's next stop in the up direction.
   def next_stop_up(stops, floor_idx)
    stop = stops.slice((floor_idx + 1)...stops.length).index { |s| s }
    stop += (floor_idx + 1) if !stop.nil?
+  end
+
+  # Find nearest floor at or below given floor that has waiters.
+  # Returns floor index or nil.
+  def waiter_floor_down(floor_idx)
+    floor = @floors.find { |f| f.has_waiters? && f.id <= floor_idx }
+    floor.nil? ? nil : floor.id
+  end
+
+  # Find nearest floor at or above given floor that has waiters.
+  # Returns floor index or nil.
+  def waiter_floor_up(floor_idx)
+    floor = @floors.find { |f| f.has_waiters? && f.id >= floor_idx }
+    floor.nil? ? nil : floor.id
   end
 end

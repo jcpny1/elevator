@@ -21,13 +21,13 @@ Currently implemented logic models are:
 * SSTF  (Shortest Seek Time First) Elevators service closest request to current position in any direction.
 
 Upcoming logic:
-* L-SCAN (Look SCAN): Like SCAN, but instead of traveling to last or first floor, reverse direction when last request in current direction is serviced.
-* C-SCAN (Circular SCAN): Like SCAN, but travel from first to last floor only. At last floor, return directly to first floor and SCAN again.
-* C-LOOK (Circular LOOK): Like L-SCAN with C-SCAN (return directly to first floor when last request in current direction is serviced).
+* LSCAN (Look SCAN): Like SCAN, but instead of traveling to last or first floor, reverse direction when last request in current direction is serviced.
+* CSCAN (Circular SCAN): Like SCAN, but travel from first to last floor only. At last floor, return directly to first floor and SCAN again.
+* CLOOK (Circular LOOK): Like LSCAN with CSCAN (return directly to first floor when last request in current direction is serviced).
 
 Regardless of logic selected:
 * passengers on board an elevator will always have priority over passengers waiting for an elevator to arrive.
-E.G., once an elevator is carrying passengers up, it will not travel down to pickup or discharge another passenger.
+E.g., once an elevator is carrying passengers up, it will not travel down to pickup or discharge another passenger.
 * passengers waiting for an up elevator will not board an elevator traveling down, and vice versa.
 
 [NOTE: The project repository is set up as a Rail API app (for future enhancements), but presently is just command line Ruby.]

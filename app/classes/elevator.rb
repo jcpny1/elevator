@@ -26,7 +26,7 @@ class Elevator
   def initialize(id, command_q, floors)
     @id        = id               # Elevator Id.
     @command_q = command_q        # receives requests from the controller.
-    @direction = 'none'           # heading = up, down, or none.
+    @direction = 'up'             # heading = up, down, or none.
     @distance  = 0.0              # cumulative distance traveled.
     @door      = 'closed'         # door status = open or closed.
     @floors    = floors           # array of Floor objects.
@@ -95,6 +95,28 @@ class Elevator
       sanity_check if Logger::debug_on
       sleep LOOP_DELAY
     end
+  end
+
+  # Determine next floor for elevator using SCAN algorithm.
+  # If direction is specified, scan in that direction, else use elevator's direction.
+  # Returns destination floor.
+  def scan(go_direction)
+    destination = nil
+    tmp_direction = go_direction.nil? ? @direction : go_direction
+    if tmp_direction == 'up'
+      if @floor_idx == (@floors.length - 1)  # already at top floor
+        destination = @floor_idx - 1  # start going down
+      else
+        destination = @floor_idx + 1  # go up one floor
+      end
+    else  # going_down
+      if @floor_idx == Floor::GROUND_FLOOR # already at bottom floor
+        destination = Floor::GROUND_FLOOR + 1  # start going up
+      else
+        destination = @floor_idx - 1  # go down one floor
+      end
+    end
+    destination
   end
 
   # Does elevator have no direction?
